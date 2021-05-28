@@ -1,0 +1,37 @@
+schema: "1"
+id: NodeBatchFeatureManualJobRunTemplateV1
+metadata:
+  name: Node Batch Manual Job Run - Dev
+  description: Node Batch Manual Job Run Pipeline Template - Dev
+  owner: digital-ms-devops@walgreens.com
+  scopes: [global]
+variables:
+- name: microserviceName
+  description: Name of the Microservice
+- name: TeamName
+  description: Enter Your Team Name
+  example: Devops
+  defaultValue: Devops  
+- name: TeamDL
+  description: Enter Your Team DL
+  example: ecomscm@walgreens.com
+configuration:
+  concurrentExecutions:
+    limitConcurrent: true
+    parallel: false
+  triggers: []
+  parameters: []
+  notifications: []
+  description: ""
+stages:
+- id: manualJobRunDev
+  type: jenkins
+  name: Run Cronjob DEV
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-manualjobrun-dev"
+    master: intops-jenkins
+    parameters: {}
+
+

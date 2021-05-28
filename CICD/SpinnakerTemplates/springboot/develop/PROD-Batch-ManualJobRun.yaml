@@ -1,0 +1,58 @@
+schema: "1"
+id: SpringBatchProdManualJobRunTemplateV1
+metadata:
+  name: Spring Batch Manual Job Run - Prod
+  description: Spring Batch Manual Job Run Pipeline Template - Prod
+  owner: digital-ms-devops@walgreens.com
+  scopes: [global]
+variables:
+- name: microserviceName
+  description: Name of the Microservice
+- name: TeamName
+  description: Enter Your Team Name
+  example: Devops
+  defaultValue: Devops  
+- name: TeamDL
+  description: Enter Your Team DL
+  example: ecomscm@walgreens.com
+configuration:
+  concurrentExecutions:
+    limitConcurrent: true
+    parallel: false
+  triggers: []
+  parameters: []
+  notifications: []
+  description: ""
+stages:
+- id: Approval
+  type: manualJudgment
+  name: JobRunApproval
+  config:
+    failPipeline: true
+    instructions: Dev Manager/Devops/OC approval to run the job
+    judgmentInputs:
+    - value: Approved
+    - value: Denied
+    notifications:
+    - address: "{{ TeamDL }}"
+      level: stage
+      type: email
+      when:
+      - manualJudgment
+      - manualJudgmentContinue
+      - manualJudgmentStop
+    sendNotifications: true
+    propagateAuthenticationContext: false
+- id: manualJobRunProd
+  type: jenkins
+  name: Run Cronjob Prod
+  dependsOn:
+  - Approval
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-manualjobrun-prod"
+    master: intopsprd-jenkins
+    parameters: {}
+
+

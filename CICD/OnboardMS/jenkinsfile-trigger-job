@@ -1,0 +1,31 @@
+/* (c) Walgreen Co. All rights reserved.*/
+properties([
+    parameters([
+        string(defaultValue: '${ parameters.MicroserviceName }', description: 'Microservice name', name: 'MicroserviceName'),
+        string(defaultValue: '${ parameters.Job }', description: 'Name of the job that needs to be triggered', name: 'Job')
+    ]),
+    [$class: 'BuildDiscarderProperty', strategy: [$class: 'LogRotator', numToKeepStr: '10']]
+])
+timeout(120) {
+	node {
+		stage('Build Job') {
+			try {
+				if (params.Job == 'Functional Test') {
+                    build job: "/${ params.MicroserviceName }/${ params.MicroserviceName }-functional-test", wait: false
+                }
+                if (params.Job == 'Load Test') {
+                    build job: "/${ params.MicroserviceName }/${ params.MicroserviceName }-load-test", wait: false
+                }
+                if (params.Job == 'UI Perf Test') {
+                    build job: "/${ params.MicroserviceName }/${ params.MicroserviceName }-ui-perf-test", wait: false
+                }
+			} catch (exc) {
+				currentBuild.result = "FAILURE"
+				throw exc
+			} finally {
+				
+			}
+		}
+	}
+}
+

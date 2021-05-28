@@ -1,0 +1,48 @@
+schema: "1"
+id: NodeBatchFeatureSuspendJobRunTemplateV1
+metadata:
+  name: Node Batch Suspend Job Run - Dev
+  description: Node Batch Suspend Job Run Pipeline Template - Dev
+  owner: digital-ms-devops@walgreens.com
+  scopes: [global]
+variables:
+- name: microserviceName
+  description: Name of the Microservice
+- name: TeamName
+  description: Enter Your Team Name
+  example: Devops
+  defaultValue: Devops  
+- name: TeamDL
+  description: Enter Your Team DL
+  example: ecomscm@walgreens.com
+configuration:
+  concurrentExecutions:
+    limitConcurrent: true
+    parallel: false
+  triggers: []
+  parameters:
+  - default: 'true'
+    description: Choose true to suspend or false to enable the job
+    hasOptions: true
+    label: Suspend
+    name: suspend
+    options:
+    - value: 'true'
+    - value: 'false'
+    pinned: true
+    required: true
+  notifications: []
+  description: ""
+stages:
+- id: suspendJobRunDev
+  type: jenkins
+  name: Suspend Cronjob DEV
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-jobsuspend-dev"
+    master: intops-jenkins
+    parameters:
+      suspend: "${ parameters.suspend }"
+
+

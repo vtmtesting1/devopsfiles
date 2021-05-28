@@ -1,0 +1,139 @@
+/* (c) Walgreen Co. All rights reserved.*/
+node {
+    properties([
+        parameters([
+            choice(choices: ['Feature', 'Develop', 'QA3', 'All'].join("\n"), description: 'Select All to publish all templates, Feature for feature branch pipeline template, Develop for develop branch pipeline template and QA3 for qa3 env pipeline template', name: 'Branch'),
+            choice(choices: ['Deploy', 'WWW3Deploy', 'ProdDeploy', 'ProdEUDeploy', 'All'].join("\n"), description: 'Select the pipeline', name: 'Pipeline'),
+            choice(choices: ['APIUI', 'API', 'Prerender', 'Chatui', 'All'].join("\n"), description: 'Select type of template', name: 'TemplateType')
+        ]),
+        [$class: 'BuildDiscarderProperty', strategy: [$class: 'LogRotator', numToKeepStr: '10']],
+        disableConcurrentBuilds()
+    ])
+    stage('Clone') {
+        dir('digital-cicd') {
+            git branch: 'master', credentialsId: 'wag_git_creds', url: 'https://wagwiki.wba.com/stash/scm/digdev/digital-cicd.git'
+        }
+    }
+    stage('Deploy - Feature Pipeline Template') {
+        try {
+            if ((params.Pipeline == 'Deploy' || params.Pipeline == 'All') && (params.Branch == 'All' || params.Branch == 'Feature')) {
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/spin/bin'
+                dir('digital-cicd') {
+                    if (params.TemplateType == 'APIUI' || params.TemplateType == 'All') {
+                        sh '/var/jenkins_home/spin/bin/spin -k --config /var/jenkins_home/spin/config --gate-endpoint https://dgtlspinnaker02.walgreens.com:8085 pipeline-template save -f SpinnakerTemplates/v2/feature/CD-API-UI-V2.json'
+                    }
+                    if (params.TemplateType == 'API' || params.TemplateType == 'All') {
+                        sh '/var/jenkins_home/spin/bin/spin -k --config /var/jenkins_home/spin/config --gate-endpoint https://dgtlspinnaker02.walgreens.com:8085 pipeline-template save -f SpinnakerTemplates/v2/feature/CD-API-V2.json'
+                    }
+                    if (params.TemplateType == 'Chatui' || params.TemplateType == 'All') {
+                        sh '/var/jenkins_home/spin/bin/spin -k --config /var/jenkins_home/spin/config --gate-endpoint https://dgtlspinnaker02.walgreens.com:8085 pipeline-template save -f SpinnakerTemplates/v2/feature/CD-Chatui-V2.json'
+                    }
+                }
+            } else {
+                echo '****** Skipped Deploy Feature Pipeline Template Publish ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Deploy - QA3 Pipeline Template') {
+        try {
+            if ((params.Pipeline == 'Deploy' || params.Pipeline == 'All') && (params.Branch == 'All' || params.Branch == 'QA3')) {
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/spin/bin'
+                dir('digital-cicd') {
+                    if (params.TemplateType == 'APIUI' || params.TemplateType == 'All') {
+                        sh '/var/jenkins_home/spin/bin/spin -k --config /var/jenkins_home/spin/config --gate-endpoint https://dgtlspinnaker02.walgreens.com:8085 pipeline-template save -f SpinnakerTemplates/v2/qa3/CD-API-UI-V2.json'
+                    }
+                    if (params.TemplateType == 'API' || params.TemplateType == 'All') {
+                        sh '/var/jenkins_home/spin/bin/spin -k --config /var/jenkins_home/spin/config --gate-endpoint https://dgtlspinnaker02.walgreens.com:8085 pipeline-template save -f SpinnakerTemplates/v2/qa3/CD-API-V2.json'
+                    }
+                }
+            } else {
+                echo '****** Skipped Deploy QA3 Pipeline Template Publish ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Deploy - Develop Pipeline Template') {
+        try {
+            if ((params.Pipeline == 'Deploy' || params.Pipeline == 'All') && (params.Branch == 'All' || params.Branch == 'Develop')) {
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/spin/bin'
+                dir('digital-cicd') {
+                    if (params.TemplateType == 'APIUI' || params.TemplateType == 'All') {
+                        sh '/var/jenkins_home/spin/bin/spin -k --config /var/jenkins_home/spin/config --gate-endpoint https://dgtlspinnaker-gate-acs.walgreens.com:8085 pipeline-template save -f SpinnakerTemplates/v2/develop/CD-API-UI-V2.json'
+                    }
+                    if (params.TemplateType == 'API' || params.TemplateType == 'All') {
+                        sh '/var/jenkins_home/spin/bin/spin -k --config /var/jenkins_home/spin/config --gate-endpoint https://dgtlspinnaker-gate-acs.walgreens.com:8085 pipeline-template save -f SpinnakerTemplates/v2/develop/CD-API-V2.json'
+                    }
+                    if (params.TemplateType == 'Prerender' || params.TemplateType == 'All') {
+                        sh '/var/jenkins_home/spin/bin/spin -k --config /var/jenkins_home/spin/config --gate-endpoint https://dgtlspinnaker-gate-acs.walgreens.com:8085 pipeline-template save -f SpinnakerTemplates/v2/develop/CD-Prerender-V2.json'
+                    }
+                }
+            } else {
+                echo '****** Skipped Deploy Develop Pipeline Template Publish ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Prod Deploy - Pipeline Template') {
+        try {
+            if (params.Pipeline == 'ProdDeploy' || params.Pipeline == 'All') {
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/spin/bin'
+                dir('digital-cicd') {
+                    if (params.TemplateType == 'Prerender') {
+                        sh '/var/jenkins_home/spin/bin/spin -k --config /var/jenkins_home/spin/config --gate-endpoint https://dgtlspinnaker-gate-acs.walgreens.com:8085 pipeline-template save -f SpinnakerTemplates/v2/develop/Prod-CD-Prerender-V2.json'
+                    } else {
+                        sh '/var/jenkins_home/spin/bin/spin -k --config /var/jenkins_home/spin/config --gate-endpoint https://dgtlspinnaker-gate-acs.walgreens.com:8085 pipeline-template save -f SpinnakerTemplates/v2/develop/Prod-CD-V2.json'
+                    }
+                }
+            } else {
+                echo '****** Skipped Prod Deploy Pipeline Template Publish ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('WWW3 Deploy - Pipeline Template') {
+        try {
+            if (params.Pipeline == 'WWW3Deploy' || params.Pipeline == 'All') {
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/spin/bin'
+                dir('digital-cicd') {
+                        sh '/var/jenkins_home/spin/bin/spin -k --config /var/jenkins_home/spin/config --gate-endpoint https://dgtlspinnaker-gate-acs.walgreens.com:8085 pipeline-template save -f SpinnakerTemplates/v2/develop/WWW3-CD-V2.json'
+                }
+            } else {
+                echo '****** Skipped WWW3 Deploy Pipeline Template Publish ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Prod EU Deploy - Pipeline Template') {
+        try {
+            if (params.Pipeline == 'ProdEUDeploy' || params.Pipeline == 'All') {
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/spin/bin'
+                dir('digital-cicd') {
+                        sh '/var/jenkins_home/spin/bin/spin -k --config /var/jenkins_home/spin/config --gate-endpoint https://dgtlspinnaker-gate-acs.walgreens.com:8085 pipeline-template save -f SpinnakerTemplates/v2/develop/DR-CD-V2.json'
+                }
+            } else {
+                echo '****** Skipped Prod EU Deploy Pipeline Template Publish ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+}
+

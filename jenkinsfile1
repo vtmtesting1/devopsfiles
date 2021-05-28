@@ -1,0 +1,236 @@
+node {
+	def FAILED_STAGE
+	def SUCCESS_STAEG
+	}
+pipeline {
+	agent any     
+	parameters {
+		string(
+			name: 'TRIGGER_BRANCH',
+			defaultValue:"Developer",
+			description: "TRIGGER_BRANCH"
+			)
+		booleanParam (
+            name : 'Is_Stable',
+            defaultValue: false,
+            description: 'Check Whenever release is made to stable version'
+			)
+		booleanParam (
+            name : 'Is_QA',
+            defaultValue: false,
+            description: 'Check Whenever release is made to QA version'
+			)
+		booleanParam (
+            name : 'NEXUS',
+            defaultValue: true,
+            description: 'Check the box to Push to Nexus')
+	
+		}
+
+	
+	environment {
+           HARBOUR_SECRET_ACCESS_KEY = credentials('Docker-Private-Credentials')
+           HARBOUR_SECRET_ACCESS_USER = credentials('Docker-Private-User') 
+		   DOCKER_REPO = '';
+	}
+	triggers {
+			gitlab(triggerOnPush: true, branchFilterType: 'NameBasedFilter', includeBranchesSpec: "Developer", secretToken: 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEF')
+		}
+
+			
+	stages {
+		stage ('Checkout Project Code') {
+			steps {
+				script {
+					FAILED_STAGE = env.STAGE_NAME
+					SUCCESS_STAGE = env.STAGE_NAME
+					}
+				dir('./') {
+				  deleteDir()
+					}
+				echo "Checking out project branch name =======================================================> $TRIGGER_BRANCH";
+				checkout([$class: 'GitSCM', branches: [[name: TRIGGER_BRANCH]], doGenerateSubmoduleConfigurations: false,  userRemoteConfigs: [[credentialsId: "GitLab.devops1", url: "https://prasadu.babu@git.dhcpaas.com/Antara/IQVIA.Antara.EODProcess.git"]]])
+				//sh "git clean -f && git reset --hard origin/$TRIGGER_BRANCH"
+				}
+			}	
+				
+		/*stage('Sonar Scanning') {
+				environment {
+						scannerHome = tool 'sonarscanner'}
+				steps {
+					script {
+						FAILED_STAGE = env.STAGE_NAME
+						SUCCESS_STAGE = SUCCESS_STAGE + " -> " + env.STAGE_NAME }		
+						
+						sh "/home/msomasundaram@dh.local/.dotnet/tools/dotnet-sonarscanner begin /k:IQVIA.Antara.EODProcess /v:1.0 /d:sonar.verbose=true"
+						 
+						
+						
+				}
+			}*/
+				
+				stage('Sonar Scanning & Building & Packaging') {
+				environment {scannerHome = tool 'sonarscanner'}
+					steps {
+					script {
+							FAILED_STAGE = env.STAGE_NAME
+							SUCCESS_STAGE = SUCCESS_STAGE + " -> " + env.STAGE_NAME
+						}						
+						  sh "pwd"
+						  sh "dotnet restore --no-cache"
+						  withSonarQubeEnv('sonaradmin') {	
+							sh script: '/home/msomasundaram@dh.local/.dotnet/tools/dotnet-sonarscanner begin /k:IQVIA.Antara.EODProcess /v:1.0 /d:sonar.verbose=true /d:sonar.cs.opencover.reportsPaths="IQVIA.Antara.EODProcess.Test/coverage.opencover.xml" /d:sonar.coverage.exclusions="**Tests*.cs"'
+							
+							sh "dotnet build --configuration Release"
+						 
+						    sh "dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover"
+						 
+							sh "/home/msomasundaram@dh.local/.dotnet/tools/dotnet-sonarscanner end"
+							}
+						   timeout(time: 10, unit: 'MINUTES') {
+							waitForQualityGate abortPipeline: true
+							}
+						
+						   sh "dotnet publish --configuration Release -o publish"
+						  sh "dotnet pack --configuration Release /p:PackageVersion='1.0.${env.BUILD_NUMBER}'"
+						   sh "docker build -t $DOCKER_REPO:latest ."
+				}              
+		}
+		
+				stage('Nexus Repo') {
+            steps {
+                script {
+                    if (params.NEXUS){
+                    FAILED_STAGE = env.STAGE_NAME
+                    SUCCESS_STAGE = SUCCESS_STAGE + " -> " + env.STAGE_NAME
+
+                    sh "pwd"
+                    echo "Compress file EODProcess to tar";
+                    def compressCommandCore = "tar --exclude='./sonar' --exclude='./sonar@tmp' --exclude='.scannerwork' --exclude='.gitignore' --exclude='.git'  -czvf PublishEOD.tar.gz ./publish/*";
+                    sh compressCommandCore
+                    echo "moving compressed files to nexus =======================================================> New Nexus http://nexusdevops.dimensions-healthcare.net";
+                    nexusArtifactUploader artifacts: [
+                        [artifactId: "EODProcess", classifier: 'SNAPSHOT', file: "PublishEOD.tar.gz", type: 'gz']
+                    ], credentialsId: 'devops-nexus-admin', groupId: 'com.iqvia.mycare', nexusUrl: 'nexusdevops.dimensions-healthcare.net', nexusVersion: 'nexus3', protocol: 'https', repository: 'DevOps-Release', version: "1.0.0.${BUILD_NUMBER}"
+                }
+                }
+            }
+        }
+			stage('Docker Registry') {
+            steps {
+                    script{
+                        def TRIGGER_BRANCH_PARSED = params.TRIGGER_BRANCH.replace("/", "-");
+                        echo TRIGGER_BRANCH_PARSED
+                        TRIGGER_BRANCH = TRIGGER_BRANCH_PARSED
+                        echo TRIGGER_BRANCH
+					if (params.TRIGGER_BRANCH == 'master'){
+                        FAILED_STAGE = env.STAGE_NAME
+                        SUCCESS_STAGE = SUCCESS_STAGE + " -> " + env.STAGE_NAME
+                                sh 'docker login -p $HARBOUR_SECRET_ACCESS_KEY -u $HARBOUR_SECRET_ACCESS_USER https://registry.assistahealth.com/'
+                                sh 'docker tag $DOCKER_REPO:latest registry.assistahealth.com/images-mycare/$DOCKER_REPO:${BUILD_NUMBER}_'+TRIGGER_BRANCH
+                                sh 'docker tag $DOCKER_REPO:latest registry.assistahealth.com/images-mycare/$DOCKER_REPO:prod_latest'
+                                
+                                sh 'docker push registry.assistahealth.com/images-mycare/$DOCKER_REPO:prod_latest'
+                                sh 'docker push registry.assistahealth.com/images-mycare/$DOCKER_REPO:${BUILD_NUMBER}_'+TRIGGER_BRANCH
+					}
+					else if(env.TRIGGER_BRANCH.contains('refs/tags') && (params.Is_Stable)){
+					 FAILED_STAGE = env.STAGE_NAME
+                        SUCCESS_STAGE = SUCCESS_STAGE + " -> " + env.STAGE_NAME
+                                sh 'docker login -p $HARBOUR_SECRET_ACCESS_KEY -u $HARBOUR_SECRET_ACCESS_USER https://registry.assistahealth.com/'
+                                sh 'docker tag $DOCKER_REPO:latest registry.assistahealth.com/images-mycare/$DOCKER_REPO:${BUILD_NUMBER}_Stable'
+                                sh 'docker tag $DOCKER_REPO:latest registry.assistahealth.com/images-mycare/$DOCKER_REPO:stable_latest'
+                                
+                                sh 'docker push registry.assistahealth.com/images-mycare/$DOCKER_REPO:stable_latest'
+                                sh 'docker push registry.assistahealth.com/images-mycare/$DOCKER_REPO:${BUILD_NUMBER}_Stable'
+					}
+					else if(env.TRIGGER_BRANCH.contains('refs/tags') && (params.Is_QA)){
+					 FAILED_STAGE = env.STAGE_NAME
+                        SUCCESS_STAGE = SUCCESS_STAGE + " -> " + env.STAGE_NAME
+                                sh 'docker login -p $HARBOUR_SECRET_ACCESS_KEY -u $HARBOUR_SECRET_ACCESS_USER https://registry.assistahealth.com/'
+                                sh 'docker tag $DOCKER_REPO:latest registry.assistahealth.com/images-mycare/$DOCKER_REPO:${BUILD_NUMBER}_'+TRIGGER_BRANCH
+                                sh 'docker tag $DOCKER_REPO:latest registry.assistahealth.com/images-mycare/$DOCKER_REPO:QA_latest'
+                                sh 'docker push registry.assistahealth.com/images-mycare/$DOCKER_REPO:QA_latest'
+                                sh 'docker push registry.assistahealth.com/images-mycare/$DOCKER_REPO:${BUILD_NUMBER}_'+TRIGGER_BRANCH
+					}
+					else if (params.TRIGGER_BRANCH == 'Developer'){
+					 FAILED_STAGE = env.STAGE_NAME
+                        SUCCESS_STAGE = SUCCESS_STAGE + " -> " + env.STAGE_NAME
+                                sh 'docker login -p $HARBOUR_SECRET_ACCESS_KEY -u $HARBOUR_SECRET_ACCESS_USER https://registry.assistahealth.com/'
+                                sh 'docker tag $DOCKER_REPO:latest registry.assistahealth.com/images-mycare/$DOCKER_REPO:${BUILD_NUMBER}_'+TRIGGER_BRANCH
+                                sh 'docker tag $DOCKER_REPO:latest registry.assistahealth.com/images-mycare/$DOCKER_REPO:Developer_latest'
+                                sh 'docker push registry.assistahealth.com/images-mycare/$DOCKER_REPO:Developer_latest'
+                                sh 'docker push registry.assistahealth.com/images-mycare/$DOCKER_REPO:${BUILD_NUMBER}_'+TRIGGER_BRANCH
+					}
+					else {
+					 FAILED_STAGE = env.STAGE_NAME
+                        SUCCESS_STAGE = SUCCESS_STAGE + " -> " + env.STAGE_NAME
+                                sh 'docker login -p $HARBOUR_SECRET_ACCESS_KEY -u $HARBOUR_SECRET_ACCESS_USER https://registry.assistahealth.com/'
+                                sh 'docker tag $DOCKER_REPO:latest registry.assistahealth.com/images-mycare/$DOCKER_REPO:${BUILD_NUMBER}_'+TRIGGER_BRANCH
+                                sh 'docker push registry.assistahealth.com/images-mycare/$DOCKER_REPO:${BUILD_NUMBER}_'+TRIGGER_BRANCH
+					}
+                         
+                    }    
+            }
+        }
+	
+	    
+        }			
+	
+	post {
+        always {
+            echo 'Test run completed'
+        }
+        success {
+            echo 'Successfully!'
+            updateGitlabCommitStatus name: 'build', state: 'failed'
+            script {
+			   wrap([$class: 'BuildUser']) {
+			   emailext (
+			   subject: "Summary Report for Job: ${env.JOB_NAME}, Release Branch: (${TRIGGER_BRANCH}), Build # (${env.BUILD_NUMBER})",
+			   body: """
+			   <p> Dear ${BUILD_USER},</p>
+			   <p> Greetings from DevOps Team!</p>
+			   <p>Please check Build output at <a href="${env.BUILD_URL}">${env.JOB_NAME} ${env.TRIGGER_BRANCH} (${env.BUILD_NUMBER})</a></p>
+			   <p>For Static Code Scanning Report, Please check <a>http://sonardevops.dimensions-healthcare.net:9000/dashboard?id=IQVIA.Antara.EODProcess</a></p>
+			   <p>Following are the stages built sucessfully :</p>
+			   <p><font color="green"><b>${SUCCESS_STAGE} </b></font></p>
+			   <p> Best Regards </p>
+			   """,
+			   
+			   compressLog: true, mimeType: 'text/html',
+			   to: "dkulandaisamy@in.imshealth.com,msomasundaram@in.imshealth.com,mkharma@ps.imshealth.com,OQatesh@ps.imshealth.com",
+			   from: 'DevOps@dimensions-healthcare.net')
+                   }
+            }
+        }
+        failure {
+            echo 'Failed!'
+            updateGitlabCommitStatus name: 'build', state: 'success'
+            script {
+                   wrap([$class: 'BuildUser']) {
+                   emailext (
+                   subject: "Summary Report for Job: ${env.JOB_NAME}, Release Branch: (${TRIGGER_BRANCH}), Build # (${env.BUILD_NUMBER})",
+                   body: """
+                   <p> Dear ${BUILD_USER},</p>
+                   <p> Greetings from DevOps Team!</p>
+                   <p>Please check Build output at <a href="${env.BUILD_URL}">${env.JOB_NAME} ${env.TRIGGER_BRANCH} (${env.BUILD_NUMBER})</a></p>
+                   <p><font color="red"><b>Build failed in following stage : ${FAILED_STAGE}.</b></font></p>
+                   <p> Best Regards </p>
+                   """,
+                   
+                   compressLog: true, mimeType: 'text/html',
+                   to: "dkulandaisamy@in.imshealth.com,msomasundaram@in.imshealth.com,mkharma@ps.imshealth.com,OQatesh@ps.imshealth.com",
+                   from: 'DevOps@dimensions-healthcare.net')
+                   }
+            }
+        }
+
+        unstable {
+            echo 'This will run only if the run was marked as unstable'
+        }
+        changed {
+            echo 'This will run only if the state of the Pipeline has changed'
+            echo 'For example, if the Pipeline was previously failing but is now successful'
+        }
+    }
+}

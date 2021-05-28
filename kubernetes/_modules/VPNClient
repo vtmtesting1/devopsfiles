@@ -1,0 +1,14 @@
+VPNClient() {
+	case $1 in
+		ON )
+			echo -e "\nPlease connect WAG VPN client to continue.. (Press ENTER key once done)"
+			read _USER_BREAK
+			;;
+		OFF )
+			echo -e "\nPlease disconnect WAG VPN client, as it may interfere with this setup.. (Press ENTER once done)"
+			read _USER_BREAK
+			;;
+		default )
+			;;
+	esac
+}

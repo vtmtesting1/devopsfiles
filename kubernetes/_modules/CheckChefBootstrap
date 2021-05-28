@@ -1,0 +1,14 @@
+CheckChefBootstrap() {
+	_RESPONSE=""
+	echo -e "\n"
+	while [ "${_RESPONSE}" != "y" ] && [ "${_RESPONSE}" != "n" ]
+	do
+		echo -e "Have all the Nodes been bootstrapped, appearing in Chef Console with IP address and rebooted once (y/n)? \c"
+		read _RESPONSE
+		_RESPONSE=`echo ${_RESPONSE} | tr -dc '[:alnum:]\n\r' | tr '[:upper:]' '[:lower:]'`
+		if [ "${_RESPONSE}" == "n" ]; then
+			echo -e "\nPlease wait until all the Nodes are bootstrapped in Chef and rebooted atleast once\n"
+			_RESPONSE=""
+		fi
+	done
+}

@@ -1,0 +1,411 @@
+schema: "1"
+id: SpringBootAPIUIProdCDTemplateV1
+metadata:
+  name: Spring Boot API/UI Prod CD Template - Develop Branch
+  description: Spring Boot API/UI Prod Continuous Delivery Pipeline Template - Develop Branch
+  owner: digital-ms-devops@walgreens.com
+  scopes: [global]
+variables:
+- name: microserviceName
+  description: Name of the Microservice
+- name: TeamDL
+  description: Enter Your Team DL
+  example: ecomscm@walgreens.com
+- name: TeamName
+  description: Enter Your Team Name
+  example: Devops
+  defaultValue: Devops
+- name: listener
+  description: Is this an listener application?
+  example: true
+  defaultValue: false
+# WWW3 Variables
+- name: minCPUWWW3
+  description: Minimum CPU needed for the Microservice
+  example: 1, 0.5, 0.25 [in core(s)]
+- name: maxCPUWWW3
+  description: Maximum number of core that can be allocated for the Microservice
+  example: 1, 0.5, 0.25 [in core(s)]
+- name: minMemoryWWW3
+  description: Minimum memory needed for the Microservice
+  example: 1024Mi, 512Mi, 256Mi [in MB]
+- name: maxMemoryWWW3
+  description: Maximum memory that can be allocated for the Microservice
+  example: 1024Mi, 512Mi, 256Mi [in MB]
+- name: minNumberOfReplicasWWW3
+  description: Minimum number of replicas
+  example: 1, 2, 3, 4
+- name: maxNumberOfReplicasWWW3
+  description: Maximum number of replicas
+  example: 1, 2, 3, 4
+- name: cpuUtilizationTargetForAutoScalingWWW3
+  description: CPU utilization target for scaling
+  example: 80, 60, 40
+- name: argsWWW3
+  description: Arguments to start the application
+  example: java -jar -Xms256m -Xmx256m /usr/local/ecomm/app/ms-svc.jar
+# Prod Variables
+- name: minCPUProd
+  description: Minimum CPU needed for the Microservice
+  example: 1, 0.5, 0.25 [in core(s)]
+- name: maxCPUProd
+  description: Maximum number of core that can be allocated for the Microservice
+  example: 1, 0.5, 0.25 [in core(s)]
+- name: minMemoryProd
+  description: Minimum memory needed for the Microservice
+  example: 1024Mi, 512Mi, 256Mi [in MB]
+- name: maxMemoryProd
+  description: Maximum memory that can be allocated for the Microservice
+  example: 1024Mi, 512Mi, 256Mi [in MB]
+- name: minNumberOfReplicasProd
+  description: Minimum number of replicas
+  example: 1, 2, 3, 4
+- name: maxNumberOfReplicasProd
+  description: Maximum number of replicas
+  example: 1, 2, 3, 4
+- name: cpuUtilizationTargetForAutoScalingProd
+  description: CPU utilization target for scaling
+  example: 80, 60, 40
+- name: argsProd
+  description: Arguments to start the application
+  example: java -jar -Xms256m -Xmx256m /usr/local/ecomm/app/ms-svc.jar
+# Application Variables
+- name: livelinessURL
+  description: Health URL of the Microservice
+  example: /{microserviceName}/health 
+- name: secrets
+  type: list
+  defaultValue:
+  - name: team-backend-instance-1
+    envVars:
+      - backend_password
+- name: envVariables
+  type: list
+  defaultValue:
+  - name: ENV_CONFIG_FILE_PATH
+    value: /deployments/config
+- name: persistentVolumeClaims
+  description: Persistent Volume Claims
+  type: list
+  defaultValue:
+  - claimName: common
+- name: nameSpace
+  description: Deployment Cluster Namespace
+  defaultValue: dotcom-app
+configuration:
+  concurrentExecutions:
+    limitConcurrent: true
+    parallel: false
+  triggers:
+  - account: dotcomprodregistry
+    enabled: true
+    name: unnamed0
+    organization: digital/dotcom
+    registry: wagdigitaldotcomprod.azurecr.io
+    repository: digital/dotcom/{{ microserviceName }}
+    runAsUser: spinnaker-svc-account
+    status:
+    - successful
+    tag: ".*"
+    type: docker
+  parameters: []
+  notifications: []
+  description: ""
+stages:
+- id: ProceedToProd
+  type: manualJudgment
+  name: RMApproval
+  config:
+    failPipeline: true
+    instructions: "Proceed Build #${trigger['tag']} to Prod?"
+    judgmentInputs: []
+    notifications:
+    - address: "{{ TeamDL }}"
+      level: stage
+      type: email
+      when:
+      - manualJudgment
+      - manualJudgmentContinue
+      - manualJudgmentStop
+    sendNotifications: true
+    propagateAuthenticationContext: false
+- id: configureProd
+  type: jenkins
+  name: Configure Prod
+  dependsOn:
+  - ProceedToProd
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-configmap-prod"
+    master: intopsprd-jenkins
+    parameters: {}
+- id: deployToProd
+  type: deploy
+  name: Deploy to Prod
+  dependsOn:
+  - configureProd
+  config:
+    notifications:
+    - address: "{{ TeamDL }}"
+      level: stage
+      type: email
+      when:
+      - stage.failed
+    sendNotifications: true
+    parameters: {}
+    clusters:
+    - account: dcomprd01
+      application: "{{ microserviceName }}"
+      cloudProvider: kubernetes
+      capacity:
+        max: "{{ maxNumberOfReplicasProd }}"
+        min: "{{ minNumberOfReplicasProd }}"
+      containers:
+      - args: ["{{ argsProd }}"]
+        command: ["/bin/sh", "-c"]
+        envVars: |
+          {% for secret in secrets %}
+          {% for envVar in secret.envVars %}
+          - {% module secretsEnvSourceModule envName=envVar secretName=secret.name %}
+          {% endfor %}
+          {% endfor %}
+          {% for envVariable in envVariables %}
+          - {% module envVarsModule name=envVariable.name value=envVariable.value %}
+          {% endfor %}
+          - envSource:
+              configMapSource:
+                configMapName: cms-config
+                key: ENV_CMS_PREVIEW
+            name: ENV_CMS_PREVIEW
+        imageDescription:
+          account: dotcomprodregistry
+          fromTrigger: true
+          imageId: "wagdigitaldotcomprod.azurecr.io/digital/dotcom/{{ microserviceName }} (Tag resolved at runtime)"
+          registry: wagdigitaldotcomprod.azurecr.io
+          repository: digital/dotcom/{{ microserviceName }}
+        imagePullPolicy: ALWAYS
+        lifecycle:
+          postStart:
+            execAction:
+              commands:
+              - sh
+              - -c
+              - mkdir -p /usr/local/ecomm/app/podstartup /usr/local/ecomm/app/podshutdown;
+                cp /deployments/scripts/podstartup/* /usr/local/ecomm/app/podstartup/;
+                cp /deployments/scripts/podshutdown/* /usr/local/ecomm/app/podshutdown/;
+                chmod +x /usr/local/ecomm/app/podstartup/*.sh /usr/local/ecomm/app/podshutdown/*.sh;
+                /usr/local/ecomm/app/podstartup/podstartup.sh
+            type: EXEC
+          preStop:
+            execAction:
+              commands:
+              - sh
+              - -c
+              - /usr/local/ecomm/app/podshutdown/podshutdown.sh
+            type: EXEC
+        limits:
+          cpu: "{{ maxCPUProd }}"
+          memory: "{{ maxMemoryProd }}"
+        livenessProbe:
+          handler:
+            execAction:
+              commands:
+              - curl
+              - -s
+              - -f
+              - http://localhost:8080/{{ livelinessURL }}
+            httpGetAction:
+              httpHeaders: []
+              path: "{{ livelinessURL }}"
+              port: 8080
+              uriScheme: HTTP
+            tcpSocketAction:
+              port: 80
+            type: EXEC
+          initialDelaySeconds: 240
+          periodSeconds: 60
+          failureThreshold: 1
+          timeoutSeconds: 3
+        name: "{{ microserviceName }}"
+        ports:
+        - containerPort: 8080
+          hostIp:
+          hostPort:
+          name: http
+          protocol: TCP
+        readinessProbe:
+          handler:
+            execAction:
+              commands:
+              - curl
+              - -s
+              - -f
+              - http://localhost:8080/{{ livelinessURL }}
+            httpGetAction:
+              httpHeaders: []
+              path: "{{ livelinessURL }}"
+              port: 8080
+              uriScheme: HTTP
+            tcpSocketAction:
+              port: 80
+            type: EXEC
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          failureThreshold: 1
+          timeoutSeconds: 2
+        requests:
+          cpu: "{{ minCPUProd }}"
+          memory: "{{ minMemoryProd }}"
+        volumeMounts: |
+          {% for secret in secrets %}
+          - {% module volumeMountModule path="/deployments/secrets" name=secret.name %}
+          {% endfor %}
+          {% for persistentVolumeClaim in persistentVolumeClaims %}
+          - {% module volumeMountModule path="/deployments/fileshare" name=persistentVolumeClaim.claimName %}
+          {% endfor %}
+          - mountPath: "/deployments/config"
+            name: "{{ microserviceName }}"
+            readOnly: false
+          - mountPath: "/deployments/logs"
+            name: "applogs"
+            readOnly: false
+          - mountPath: "/deployments/cache/voltage"
+            name: "voltagecache"
+            readOnly: false
+          - mountPath: "/deployments/cache/app"
+            name: "appcache"
+            readOnly: false
+          - mountPath: "/deployments/scripts/podstartup"
+            name: "podstartup-config"
+            readOnly: false
+          - mountPath: "/deployments/scripts/podshutdown"
+            name: "podshutdown-config"
+            readOnly: false
+          - mountPath: "/deployments/secrets/podstartup-secret"
+            name: "podstartup-secret"
+            readOnly: false
+      deployment:
+        deploymentStrategy:
+          rollingUpdate:
+            maxSurge: 1
+            maxUnavailable: 1
+          type: RollingUpdate
+        enabled: false
+        minReadySeconds: 0
+      dnsPolicy: ClusterFirst
+      interestingHealthProviderNames:
+      - KubernetesContainer
+      - KubernetesPod
+      loadBalancers:
+      - "{{ microserviceName }}"
+      maxRemainingAsgs: 3
+      namespace: "{{ nameSpace }}"
+      nodeSelector: {}
+      podAnnotations: {}
+      provider: kubernetes
+      region: "{{ nameSpace }}"
+      replicaSetAnnotations:
+        team: "{{ TeamName }}"
+        technology: SpringBoot UI
+        listener: "{{ listener }}"
+      scaleDown: true
+      scalingPolicy:
+        cpuUtilization:
+          target: "{{ cpuUtilizationTargetForAutoScalingProd }}"
+      strategy: redblack
+      # stack: app
+      targetSize: 1
+      terminationGracePeriodSeconds: 30
+      volumeSources: |
+        {% for secret in secrets %}
+        - {% module secretVolumeSourceModule name=secret.name %}
+        {% endfor %}
+        {% for persistentVolumeClaim in persistentVolumeClaims %}
+        - {% module pvcVolumeSourceModule name=persistentVolumeClaim.claimName %}
+        {% endfor %}
+        - name: "{{ microserviceName }}"
+          configMap:
+            configMapName: "{{ microserviceName }}-config"
+          type: CONFIGMAP
+        - hostPath:
+            path: "/appdata/disk1/logs"
+          name: applogs
+          type: HOSTPATH
+        - hostPath:
+            path: "/tmp/cache/voltage"
+          name: voltagecache
+          type: HOSTPATH
+        - hostPath:
+            path: "/tmp/cache/app"
+          name: appcache
+          type: HOSTPATH
+        - configMap:
+            configMapName: podstartup-config
+          name: podstartup-config
+          type: CONFIGMAP
+        - configMap:
+            configMapName: podshutdown-config
+          name: podshutdown-config
+          type: CONFIGMAP
+        - secret:
+            secretName: podstartup-secret
+          name: podstartup-secret
+          type: SECRET
+partials: []
+modules:  
+- id: secretsEnvSourceModule
+  usage: Defines the env source for exposing secrets as env variables
+  variables:
+  - name: envName
+    description: env variable name
+  - name: secretName
+    description: Secret Name
+  definition:
+    envSource:
+      secretSource:
+        secretName: "{{ secretName }}"
+        key: "{{ envName }}"
+    name: "{{ envName }}"
+- id: volumeMountModule
+  usage: Defines the volume mount of a container
+  variables:
+  - name: name
+    description: mount source name
+  - name: path
+    description: mount path
+  definition:
+    mountPath: "{{ path }}/{{ name }}"
+    name: "{{ name }}"
+    readOnly: false
+- id: secretVolumeSourceModule
+  usage: Defines volume source for secrets
+  variables:
+  - name: name
+    description: secret name
+  definition:
+    name: "{{ name }}"
+    secret:
+      secretName: "{{ name }}"
+    type: SECRET
+- id: pvcVolumeSourceModule
+  usage: Defines volume source for pvc
+  variables:
+  - name: name
+    description: claim name
+  definition:
+    name: "{{ name }}"
+    persistentVolumeClaim:
+      claimName: "{{ name }}"
+    type: PERSISTENTVOLUMECLAIM
+- id: envVarsModule
+  usage: Defines the ENV vars and values
+  variables:
+  - name: name
+    description: ENV variable name
+  - name: value
+    description: ENV variable value
+  definition:
+    name: "{{ name }}"
+    value: "{{ value }}"
+

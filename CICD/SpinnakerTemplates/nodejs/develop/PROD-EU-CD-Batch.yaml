@@ -1,0 +1,86 @@
+schema: "1"
+id: NodeBatchProdEUCDTemplateV1
+metadata:
+  name: Node Batch Prod EU CD Template - Develop Branch
+  description: Node Batch Prod EU Continuous Delivery Pipeline Template - Develop Branch
+  owner: digital-ms-devops@walgreens.com
+  scopes: [global]
+variables:
+- name: microserviceName
+  description: Name of the Microservice
+- name: TeamName
+  description: Enter Your Team Name
+  example: Devops
+  defaultValue: Devops    
+- name: TeamDL
+  description: Enter Your Team DL
+  example: ecomscm@walgreens.com
+configuration:
+  concurrentExecutions:
+    limitConcurrent: true
+    parallel: false
+  triggers:
+  - account: dotcomprodeuregistry
+    enabled: true
+    name: unnamed0
+    organization: digital/dotcom
+    registry: wagdigitaldotcomprodacr.azurecr.io
+    repository: digital/dotcom/{{ microserviceName }}
+    runAsUser: spinnaker-svc-account
+    status:
+    - successful
+    tag: ".*"
+    type: docker
+  parameters: []
+  notifications: []
+  description: ""
+stages:
+- id: proceedToProdEU
+  type: manualJudgment
+  name: RMApproval
+  config:
+    failPipeline: true
+    instructions: "Proceed Build #${trigger['tag']} to Prod-EU?"
+    judgmentInputs: []
+    notifications:
+    - address: "{{ TeamDL }}"
+      level: stage
+      type: email
+      when:
+      - manualJudgment
+      - manualJudgmentContinue
+      - manualJudgmentStop
+    sendNotifications: true
+    propagateAuthenticationContext: false
+- id: configureProdEU
+  type: jenkins
+  name: Configure Prod-EU
+  dependsOn:
+  - proceedToProdEU
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-configmap-prod-eu"
+    master: intopsprd-jenkins
+    parameters: {}
+- id: deployToProdEU
+  type: jenkins
+  name: Deploy to Prod-EU
+  dependsOn:
+  - configureProdEU
+  config:
+    notifications:
+    - address: "{{ TeamDL }}"
+      level: stage
+      type: email
+      when:
+      - stage.failed
+    sendNotifications: true
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-deploy-prod-eu"
+    master: intopsprd-jenkins
+    parameters: {
+    "buildnumber": "${trigger['tag']}"
+    }
+

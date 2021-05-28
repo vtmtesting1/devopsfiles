@@ -1,0 +1,11 @@
+CheckAzureLogin() {
+	`${AZ} account show --query 'tenantId' -o tsv > /dev/null 2>&1`
+	if [ $? -ne 0 ]; then
+		echo -e "\nWARNING: It looks like you are not logged into an Azure account. Please login now..\n"
+		${AZ} login  > /dev/null
+		if [ $? -ne 0 ]; then
+			echo -e "\nERROR: You have to login to Azure account to continue. Aborting!!!\n"
+			exit 97
+		fi
+	fi
+}

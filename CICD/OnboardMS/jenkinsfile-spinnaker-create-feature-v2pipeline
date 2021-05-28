@@ -1,0 +1,47 @@
+/* (c) Walgreen Co. All rights reserved.*/
+node {
+    properties([
+        parameters([
+            string(defaultValue: '', description: 'Enter RepoName you want to build Template', name: 'RepoName'),
+            string(defaultValue: '', description: 'Enter MicroService you want to build Template', name: 'MicroserviceName'),
+            choice(choices: ['All', 'Deploy'].join("\n"), description: 'Select All to create build and deploy pipelines, Deploy for deploy only, Currently only Deploy available', name: 'Pipeline'),
+            choice(choices: ['APIUI', 'API', 'Chatui'].join("\n"), description: 'Select type of template', name: 'TemplateType')
+        ]),
+        [$class: 'BuildDiscarderProperty', strategy: [$class: 'LogRotator', numToKeepStr: '10']],
+        disableConcurrentBuilds()
+    ])
+    stage('Clone') {
+        dir('PipelineConfig')  {
+            git branch: 'configdevops', credentialsId: 'wag_git_creds', url: 'https://wagwiki.wba.com/stash/scm/ecomm/${RepoName}.git'
+        }
+    }
+    stage('Deploy Pipeline') {
+        try {
+            if (params.Pipeline == 'All' || params.Pipeline == 'Deploy') {
+                sh 'echo ${BUILD_NUMBER}'
+                sh 'echo ${WORKSPACE}'
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/spin/bin'
+                sh 'cp ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-v2.json ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+                if (params.TemplateType == 'APIUI') {
+                   // sh 'sed -i.bak \'s/APIUIFeatureCDTemplateV2/\'APIUIFeatureCDTemplateV2\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+                }
+                if (params.TemplateType == 'API') {
+                    sh 'sed -i.bak \'s/APIUIFeatureCDTemplateV2/\'APIFeatureCDTemplateV2\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+                }
+                if (params.TemplateType == 'Chatui') {
+                    sh 'sed -i.bak \'s/APIUIFeatureCDTemplateV2/\'ChatuiFeatureCDTemplateV2\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+                }
+                // sh 'sed -i.bak "s/${MicroserviceName}-feature-deploy-v2/${MicroserviceName}-feature-deploy-v2/g" ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+                
+                sh '/var/jenkins_home/spin/bin/spin -k --config /var/jenkins_home/spin/config --gate-endpoint https://dgtlspinnaker02.walgreens.com:8085 pipeline save -f ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+            } else {
+                echo '****** Skipped Deploy Pipeline Creation ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+}
+

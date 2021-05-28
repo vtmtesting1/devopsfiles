@@ -1,0 +1,27 @@
+AddNginxReplyURLtoAADApp() {
+	echo -e "\nNGINX Service IP: ${NGINX_SERVICE_IP}"
+	echo -e "\nNGINX AAD App ID: ${NGINX_AAD_APP_ID}"
+
+	if [[ "${NGINX_SERVICE_IP}" != "" ]]; then
+		_REPLY_URL="https://${NGINX_SERVICE_IP}/oauth2/callback"
+		echo -e "\nReply URL: ${_REPLY_URL}"
+		if [[ "${NGINX_AAD_APP_ID}" != "" ]]; then
+			_AAD_APP_NAME=`${AZ} ad app show --id ${NGINX_AAD_APP_ID} --query 'displayName' -o tsv 2> /dev/null`
+			if [ "${_AAD_APP_NAME}" == "" ]; then
+				echo -e "\n${AMBER}WARNING: AAD App with ID '${NGINX_AAD_APP_ID}' could not be found. Add the Reply URL '${_REPLY_URL}' manually to the valid Azure AD App${NO_COLOR}\n"
+			else
+				echo -e "\nUpdating AAD App '${_AAD_APP_NAME}' with Reply URL '${_REPLY_URL}'"
+				echo -e "\n${WHITE}COMMAND: ${AZ} ad app update --id ${NGINX_AAD_APP_ID} --add replyUrls=${_REPLY_URL}${NO_COLOR}"
+
+				${AZ} ad app update --id ${NGINX_AAD_APP_ID} --add replyUrls=${_REPLY_URL} 2> /dev/null
+
+				if [ $? -ne 0 ]; then
+					echo -e "\n${AMBER}WARNING: Couldn't add the Reply URL '${_REPLY_URL}' to the Azure AD App '${_AAD_APP_NAME} (${NGINX_AAD_APP_ID})'. Add manually...${NO_COLOR}"
+				else
+					echo -e "\nSuccessfully Added the Reply URL '${_REPLY_URL}' to the Azure AD App '${_AAD_APP_NAME}' (${NGINX_AAD_APP_ID})"
+				fi			
+			fi
+		fi
+	fi
+	echo
+}

@@ -1,0 +1,8 @@
+CheckResourceGroup() {
+	_RG_COUNT=`${AZ} group list --query "[?location=='${AZURE_REGION}']" -o table | awk '{ print $1 }' | grep -w "${AZURE_RESOURCE_GROUP}" | wc -l`
+
+	if [ ${_RG_COUNT} -eq 0 ]; then
+		echo -e "\nERROR: Resource group '${AZURE_RESOURCE_GROUP}' doesn't exist. Aborting!!!\n"
+		exit 82
+	fi
+}

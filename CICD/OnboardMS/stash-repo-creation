@@ -1,0 +1,527 @@
+#!/bin/bash
+
+curl -u ecomm-stash-int:EC0mPh0t0 -X POST -H "Accept: application/json"  -H "Content-Type: application/json" "https://wagwiki.wba.com/stash/rest/api/1.0/projects/ECOMM/repos" -d '{"name":"'$RepoName'"}'
+
+echo "$TemplateType"
+  if [ "$TemplateType" = "Springboot-UI" ] 
+     then
+
+     cd /var/jenkins_home/workspace/
+     rm -rf springboot-ui-boilerplate
+
+     git config --global user.email "senthilkumar.palaniappan@walgreens.com"
+     git config --global user.name "spalanpv"
+
+     git clone -b master https://ecomm-stash-int:EC0mPh0t0@wagwiki.wba.com/stash/scm/ecomm/springboot-ui-boilerplate.git
+
+
+     cd springboot-ui-boilerplate/deployment
+     sed -i.bak 's/springbootuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/deployment/*
+     sed -i.bak 's/springboot-ui-boilerplate/'$RepoName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/deployment/*
+     rm -rf *.bak
+     
+     cd /var/jenkins_home/workspace/springboot-ui-boilerplate/config/spinnaker
+     sed -i.bak 's/springbootuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/config/spinnaker/pipeline-config.yml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-ui-boilerplate/config/env/dev
+     sed -i.bak 's/springbootuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/config/env/dev/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-ui-boilerplate/config/env/perf
+     sed -i.bak 's/springbootuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/config/env/perf/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-ui-boilerplate/config/env/prod
+     sed -i.bak 's/springbootuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/config/env/prod/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-ui-boilerplate/config/env/uat
+     sed -i.bak 's/springbootuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/config/env/uat/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-ui-boilerplate/config/env/local
+     sed -i.bak 's/springbootuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/config/env/local/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-ui-boilerplate/src/main/resources
+     sed -i.bak 's/springboot-ui-boilerplate/'$RepoName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/src/main/resources/bootstrap.yml
+     sed -i.bak 's/springbootuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/src/main/resources/application.yml
+     sed -i.bak 's/springboot-ui-boilerplate/'$RepoName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/src/main/resources/application.yml
+     sed -i.bak 's/springbootuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/src/main/resources/logback-spring.xml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-ui-boilerplate
+     sed -i.bak 's/springbootuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/build.gradle
+     sed -i.bak 's/springboot-ui-boilerplate/'$RepoName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/build.gradle
+     sed -i.bak 's/springbootuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/package.json
+     sed -i.bak 's/springboot-ui-boilerplate/'$RepoName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/package.json
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-ui-boilerplate/src/main/java/com/walgreens/springbootuiboilerplate/config
+     sed -i.bak 's/springbootuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/src/main/java/com/walgreens/springbootuiboilerplate/config/BoilerPlateConfig.java
+      sed -i.bak 's/springbootuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/src/main/java/com/walgreens/springbootuiboilerplate/config/WebConfig.java
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-ui-boilerplate/src/main/java/com/walgreens/springbootuiboilerplate/
+     sed -i.bak 's/springbootuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/src/main/java/com/walgreens/springbootuiboilerplate/SpringbootBoilerplateUIApplication.java
+     sed -i.bak 's/SpringbootBoilerplateUI/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/src/main/java/com/walgreens/springbootuiboilerplate/SpringbootBoilerplateUIApplication.java
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-ui-boilerplate/src/main/java/com/walgreens/springbootuiboilerplate/
+     mv SpringbootBoilerplateUIApplication.java ${MicroserviceName}Application.java
+
+     cd /var/jenkins_home/workspace/springboot-ui-boilerplate/src/main/java/com/walgreens/
+     mv springbootuiboilerplate ${MicroserviceName}
+
+     cd /var/jenkins_home/workspace/springboot-ui-boilerplate/src/test/java/com/walgreens/springbootuiboilerplate/
+     sed -i.bak 's/springbootuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/src/test/java/com/walgreens/springbootuiboilerplate/SpringBootBoilerplateApplicationTests.java
+     sed -i.bak 's/SpringbootBoilerplateUI/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/src/test/java/com/walgreens/springbootuiboilerplate/SpringBootBoilerplateApplicationTests.java
+     sed -i.bak 's/SpringBootBoilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-ui-boilerplate/src/test/java/com/walgreens/springbootuiboilerplate/SpringBootBoilerplateApplicationTests.java
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-ui-boilerplate/src/test/java/com/walgreens/springbootuiboilerplate/
+     mv SpringBootBoilerplateApplicationTests.java ${MicroserviceName}ApplicationTests.java
+
+     cd /var/jenkins_home/workspace/springboot-ui-boilerplate/src/test/java/com/walgreens/
+     mv springbootuiboilerplate ${MicroserviceName}
+
+     cd /var/jenkins_home/workspace/springboot-ui-boilerplate
+     rm -rf .git
+
+     git init
+     git add --all
+     git commit -m "Initial Commit"
+     git remote add origin https://ecomm-stash-int:EC0mPh0t0@wagwiki.wba.com/stash/scm/ecomm/$RepoName.git
+     git push -u origin master
+
+     git checkout -b configdevops
+     git checkout -b develop
+     git push -u origin configdevops develop
+
+     cd /var/jenkins_home/workspace/
+     rm -rf springboot-ui-boilerplate
+
+  elif [ "$TemplateType" = "ReactJS-UI" ] 
+     then
+
+     cd /var/jenkins_home/workspace/
+     rm -rf react-ui-boilerplate
+
+     git config --global user.email "senthilkumar.palaniappan@walgreens.com"
+     git config --global user.name "spalanpv"
+
+     git clone -b master https://ecomm-stash-int:EC0mPh0t0@wagwiki.wba.com/stash/scm/ecomm/react-ui-boilerplate.git
+
+     cd react-ui-boilerplate/deployment
+     sed -i.bak 's/reactuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/react-ui-boilerplate/deployment/*
+     sed -i.bak 's/react-ui-boilerplate/'$RepoName'/g' /var/jenkins_home/workspace/react-ui-boilerplate/deployment/*
+     rm -rf *.bak
+     
+     cd /var/jenkins_home/workspace/react-ui-boilerplate/config/spinnaker
+     sed -i.bak 's/reactuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/react-ui-boilerplate/config/spinnaker/pipeline-config.yml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/react-ui-boilerplate/config/env/dev
+     sed -i.bak 's/reactuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/react-ui-boilerplate/config/env/dev/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/react-ui-boilerplate/config/env/perf
+     sed -i.bak 's/reactuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/react-ui-boilerplate/config/env/perf/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/react-ui-boilerplate/config/env/prod
+     sed -i.bak 's/reactuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/react-ui-boilerplate/config/env/prod/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/react-ui-boilerplate/config/env/uat
+     sed -i.bak 's/reactuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/react-ui-boilerplate/config/env/uat/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/react-ui-boilerplate/config/env/local
+     sed -i.bak 's/reactuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/react-ui-boilerplate/config/env/local/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/react-ui-boilerplate/config/env/virtual
+     sed -i.bak 's/reactuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/react-ui-boilerplate/config/env/virtual/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/react-ui-boilerplate/config
+     sed -i.bak 's/reactuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/react-ui-boilerplate/config/*
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/react-ui-boilerplate/src/api
+     sed -i.bak 's/reactuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/react-ui-boilerplate/src/api/ServerEntry.js
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/react-ui-boilerplate
+     sed -i.bak 's/reactuiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/react-ui-boilerplate/package.json
+     sed -i.bak 's/react-ui-boilerplate/'$RepoName'/g' /var/jenkins_home/workspace/react-ui-boilerplate/package.json
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/react-ui-boilerplate
+     rm -rf .git
+
+     git init
+     git add --all
+     git commit -m "Initial Commit"
+     git remote add origin https://ecomm-stash-int:EC0mPh0t0@wagwiki.wba.com/stash/scm/ecomm/$RepoName.git
+     git push -u origin master
+     
+     git checkout -b configdevops
+     git checkout -b develop
+     git push -u origin configdevops develop
+
+     cd /var/jenkins_home/workspace/
+     rm -rf react-ui-boilerplate
+     
+  elif [ "$TemplateType" = "Springboot-API" ] 
+     then
+
+     cd /var/jenkins_home/workspace/
+     rm -rf springboot-api-boilerplate
+
+     git config --global user.email "senthilkumar.palaniappan@walgreens.com"
+     git config --global user.name "spalanpv"
+
+     git clone -b master https://ecomm-stash-int:EC0mPh0t0@wagwiki.wba.com/stash/scm/ecomm/springboot-api-boilerplate.git
+
+
+     cd springboot-api-boilerplate/deployment
+     sed -i.bak 's/springbootapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-api-boilerplate/deployment/*
+     sed -i.bak 's/springboot-api-boilerplate/'$RepoName'/g' /var/jenkins_home/workspace/springboot-api-boilerplate/deployment/*
+     rm -rf *.bak
+     
+     cd /var/jenkins_home/workspace/springboot-api-boilerplate/config/spinnaker
+     sed -i.bak 's/springbootapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-api-boilerplate/config/spinnaker/pipeline-config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-api-boilerplate/config/env/dev
+     sed -i.bak 's/springbootapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-api-boilerplate/config/env/dev/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-api-boilerplate/config/env/perf
+     sed -i.bak 's/springbootapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-api-boilerplate/config/env/perf/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-api-boilerplate/config/env/prod
+     sed -i.bak 's/springbootapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-api-boilerplate/config/env/prod/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-api-boilerplate/config/env/uat
+     sed -i.bak 's/springbootapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-api-boilerplate/config/env/uat/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-api-boilerplate/config/env/local
+     sed -i.bak 's/springbootapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-api-boilerplate/config/env/local/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-api-boilerplate/src/main/resources
+     sed -i.bak 's/springbootapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-api-boilerplate/src/main/resources/bootstrap.yml
+     sed -i.bak 's/springbootapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-api-boilerplate/src/main/resources/application.yml
+     sed -i.bak 's/springbootapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-api-boilerplate/src/main/resources/logback-spring.xml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-api-boilerplate
+     sed -i.bak 's/springbootapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-api-boilerplate/build.gradle
+     sed -i.bak 's/springboot-api-boilerplate/'$RepoName'/g' /var/jenkins_home/workspace/springboot-api-boilerplate/build.gradle
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-api-boilerplate/src/main/java/com/walgreens/springbootapiboilerplate/config
+     sed -i.bak 's/springbootapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-api-boilerplate/src/main/java/com/walgreens/springbootapiboilerplate/config/BoilerPlateConfig.java
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-api-boilerplate/src/main/java/com/walgreens/springbootapiboilerplate/
+     sed -i.bak 's/springbootapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-api-boilerplate/src/main/java/com/walgreens/springbootapiboilerplate/SpringbootBoilerplateAPIApplication.java
+     sed -i.bak 's/SpringbootBoilerplateAPI/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-api-boilerplate/src/main/java/com/walgreens/springbootapiboilerplate/SpringbootBoilerplateAPIApplication.java
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-api-boilerplate/src/main/java/com/walgreens/springbootapiboilerplate/
+     mv SpringbootBoilerplateAPIApplication.java ${MicroserviceName}Application.java
+
+     cd /var/jenkins_home/workspace/springboot-api-boilerplate/src/main/java/com/walgreens/
+     mv springbootapiboilerplate ${MicroserviceName}
+
+     cd /var/jenkins_home/workspace/springboot-api-boilerplate/src/test/java/com/walgreens/springbootapiboilerplate/
+     sed -i.bak 's/springbootapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-api-boilerplate/src/test/java/com/walgreens/springbootapiboilerplate/SpringBootBoilerplateApplicationTests.java
+     sed -i.bak 's/SpringbootBoilerplateAPI/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-api-boilerplate/src/test/java/com/walgreens/springbootapiboilerplate/SpringBootBoilerplateApplicationTests.java
+     sed -i.bak 's/SpringBootBoilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-api-boilerplate/src/test/java/com/walgreens/springbootapiboilerplate/SpringBootBoilerplateApplicationTests.java
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-api-boilerplate/src/test/java/com/walgreens/springbootapiboilerplate/
+     mv SpringBootBoilerplateApplicationTests.java ${MicroserviceName}ApplicationTests.java
+
+     cd /var/jenkins_home/workspace/springboot-api-boilerplate/src/test/java/com/walgreens/
+     mv springbootapiboilerplate ${MicroserviceName}
+
+     cd /var/jenkins_home/workspace/springboot-api-boilerplate
+     rm -rf .git
+
+     git init
+     git add --all
+     git commit -m "Initial Commit"
+     git remote add origin https://ecomm-stash-int:EC0mPh0t0@wagwiki.wba.com/stash/scm/ecomm/$RepoName.git
+     git push -u origin master
+
+     git checkout -b configdevops
+     git checkout -b develop
+     git push -u origin configdevops develop
+
+     cd /var/jenkins_home/workspace/
+     rm -rf springboot-api-boilerplate
+     
+  elif [ "$TemplateType" = "ReactJS-API" ] 
+     then
+
+     cd /var/jenkins_home/workspace/
+     rm -rf node-api-boilerplate
+
+     git config --global user.email "senthilkumar.palaniappan@walgreens.com"
+     git config --global user.name "spalanpv"
+
+     git clone -b master https://ecomm-stash-int:EC0mPh0t0@wagwiki.wba.com/stash/scm/ecomm/node-api-boilerplate.git
+
+     cd node-api-boilerplate/deployment
+     sed -i.bak 's/nodeapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/node-api-boilerplate/deployment/*
+     sed -i.bak 's/node-api-boilerplate/'$RepoName'/g' /var/jenkins_home/workspace/node-api-boilerplate/deployment/*
+     rm -rf *.bak
+     
+     cd /var/jenkins_home/workspace/node-api-boilerplate/config/spinnaker
+     sed -i.bak 's/nodeapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/node-api-boilerplate/config/spinnaker/pipeline-config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/node-api-boilerplate/config/env/dev
+     sed -i.bak 's/nodeapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/node-api-boilerplate/config/env/dev/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/node-api-boilerplate/config/env/perf
+     sed -i.bak 's/nodeapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/node-api-boilerplate/config/env/perf/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/node-api-boilerplate/config/env/prod
+     sed -i.bak 's/nodeapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/node-api-boilerplate/config/env/prod/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/node-api-boilerplate/config/env/uat
+     sed -i.bak 's/nodeapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/node-api-boilerplate/config/env/uat/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/node-api-boilerplate/config/env/local
+     sed -i.bak 's/nodeapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/node-api-boilerplate/config/env/local/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/node-api-boilerplate/config/env/virtual
+     sed -i.bak 's/nodeapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/node-api-boilerplate/config/env/virtual/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/node-api-boilerplate/config
+     sed -i.bak 's/nodeapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/node-api-boilerplate/config/*
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/node-api-boilerplate
+     sed -i.bak 's/nodeapiboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/node-api-boilerplate/package.json
+     sed -i.bak 's/node-api-boilerplate/'$RepoName'/g' /var/jenkins_home/workspace/node-api-boilerplate/package.json
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/node-api-boilerplate
+     rm -rf .git
+
+     git init
+     git add --all
+     git commit -m "Initial Commit"
+     git remote add origin https://ecomm-stash-int:EC0mPh0t0@wagwiki.wba.com/stash/scm/ecomm/$RepoName.git
+     git push -u origin master
+     
+     git checkout -b configdevops
+     git checkout -b develop
+     git push -u origin configdevops develop
+
+     cd /var/jenkins_home/workspace/
+     rm -rf node-api-boilerplate
+   
+     elif [ "$TemplateType" = "Springboot-React" ] 
+     then
+
+     cd /var/jenkins_home/workspace/
+     rm -rf springboot-react-boilerplate
+
+     git config --global user.email "senthilkumar.palaniappan@walgreens.com"
+     git config --global user.name "spalanpv"
+
+     git clone -b master https://ecomm-stash-int:EC0mPh0t0@wagwiki.wba.com/stash/scm/ecomm/springboot-react-boilerplate.git
+
+
+     cd springboot-react-boilerplate/deployment
+     sed -i.bak 's/springbootreactboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-react-boilerplate/deployment/*
+     sed -i.bak 's/springboot-react-boilerplate/'$RepoName'/g' /var/jenkins_home/workspace/springboot-react-boilerplate/deployment/*
+     rm -rf *.bak
+     
+     cd /var/jenkins_home/workspace/springboot-react-boilerplate/config/spinnaker
+     sed -i.bak 's/springbootreactboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-react-boilerplate/config/spinnaker/pipeline-config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-react-boilerplate/config/env/dev
+     sed -i.bak 's/springbootreactboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-react-boilerplate/config/env/dev/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-react-boilerplate/config/env/perf
+     sed -i.bak 's/springbootreactboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-react-boilerplate/config/env/perf/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-react-boilerplate/config/env/prod
+     sed -i.bak 's/springbootreactboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-react-boilerplate/config/env/prod/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-react-boilerplate/config/env/uat
+     sed -i.bak 's/springbootreactboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-react-boilerplate/config/env/uat/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-react-boilerplate/config/env/local
+     sed -i.bak 's/springbootreactboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-react-boilerplate/config/env/local/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-react-boilerplate/src/main/resources
+     sed -i.bak 's/springboot-react-boilerplate/'$RepoName'/g' /var/jenkins_home/workspace/springboot-react-boilerplate/src/main/resources/bootstrap.yml
+     sed -i.bak 's/springbootreactboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-react-boilerplate/src/main/resources/application.yml
+     sed -i.bak 's/springboot-react-boilerplate/'$RepoName'/g' /var/jenkins_home/workspace/springboot-react-boilerplate/src/main/resources/application.yml
+     sed -i.bak 's/springbootreactboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-react-boilerplate/src/main/resources/logback-spring.xml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-react-boilerplate
+     sed -i.bak 's/springbootreactboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-react-boilerplate/build.gradle
+     sed -i.bak 's/springboot-react-boilerplate/'$RepoName'/g' /var/jenkins_home/workspace/springboot-react-boilerplate/build.gradle
+     sed -i.bak 's/springbootreactboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-react-boilerplate/package.json
+     sed -i.bak 's/springreactboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-react-boilerplate/package.json
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-react-boilerplate/src/main/java/com/walgreens/springbootreactboilerplate/config
+     sed -i.bak 's/springbootreactboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-react-boilerplate/src/main/java/com/walgreens/springbootreactboilerplate/config/BoilerPlateConfig.java
+     sed -i.bak 's/springbootreactboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-react-boilerplate/src/main/java/com/walgreens/springbootreactboilerplate/config/WebConfig.java
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-react-boilerplate/src/main/java/com/walgreens/springbootreactboilerplate/
+     sed -i.bak 's/springbootreactboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-react-boilerplate/src/main/java/com/walgreens/springbootreactboilerplate/springbootreactboilerplateApplication.java
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-react-boilerplate/src/main/java/com/walgreens/springbootreactboilerplate/
+     mv springbootreactboilerplateApplication.java ${MicroserviceName}Application.java
+
+     cd /var/jenkins_home/workspace/springboot-react-boilerplate/src/main/java/com/walgreens/
+     mv springbootreactboilerplate ${MicroserviceName}
+
+     cd /var/jenkins_home/workspace/springboot-react-boilerplate/src/test/java/com/walgreens/springbootreactboilerplate/
+     sed -i.bak 's/springbootreactboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springboot-react-boilerplate/src/test/java/com/walgreens/springbootreactboilerplate/springbootreactboilerplateApplicationTests.java
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springboot-react-boilerplate/src/test/java/com/walgreens/springbootreactboilerplate/
+     mv springbootreactboilerplateApplicationTests.java ${MicroserviceName}ApplicationTests.java
+
+     cd /var/jenkins_home/workspace/springboot-react-boilerplate/src/test/java/com/walgreens/
+     mv springbootreactboilerplate ${MicroserviceName}
+
+     cd /var/jenkins_home/workspace/springboot-react-boilerplate
+     rm -rf .git
+
+     git init
+     git add --all
+     git commit -m "Initial Commit"
+     git remote add origin https://ecomm-stash-int:EC0mPh0t0@wagwiki.wba.com/stash/scm/ecomm/$RepoName.git
+     git push -u origin master
+
+     git checkout -b configdevops
+     git checkout -b develop
+     git push -u origin configdevops develop
+
+     cd /var/jenkins_home/workspace/
+     rm -rf springboot-react-boilerplate
+     
+    elif [ "$TemplateType" = "SpringBatch" ] 
+    then
+
+     cd /var/jenkins_home/workspace/
+     rm -rf springbatch-boilerplate
+
+     git config --global user.email "senthilkumar.palaniappan@walgreens.com"
+     git config --global user.name "spalanpv"
+
+     git clone -b master https://ecomm-stash-int:EC0mPh0t0@wagwiki.wba.com/stash/scm/ecomm/springbatch-boilerplate.git
+
+
+     cd springbatch-boilerplate/deployment
+     sed -i.bak 's/springbatchboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springbatch-boilerplate/deployment/*
+     sed -i.bak 's/springbatch-boilerplate/'$RepoName'/g' /var/jenkins_home/workspace/springbatch-boilerplate/deployment/*
+     rm -rf *.bak
+     
+     cd /var/jenkins_home/workspace/springbatch-boilerplate/config/spinnaker
+     sed -i.bak 's/springbatchboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springbatch-boilerplate/config/spinnaker/pipeline-config.yaml
+     rm -rf *.bak
+     
+     cd /var/jenkins_home/workspace/springbatch-boilerplate/config/cron
+     sed -i.bak 's/springbatchboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springbatch-boilerplate/config/cron/config-cron.yaml
+     MICROSERVICENAME=`echo $MicroserviceName|tr '[:lower:]' '[:upper:]'`
+     sed -i.bak 's/SPRINGBATCHBOILERPLATE/'$MICROSERVICENAME'/g' /var/jenkins_home/workspace/springbatch-boilerplate/config/cron/config-cron.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springbatch-boilerplate/config/env/dev
+     sed -i.bak 's/springbatchboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springbatch-boilerplate/config/env/dev/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springbatch-boilerplate/config/env/perf
+     sed -i.bak 's/springbatchboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springbatch-boilerplate/config/env/perf/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springbatch-boilerplate/config/env/prod
+     sed -i.bak 's/springbatchboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springbatch-boilerplate/config/env/prod/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springbatch-boilerplate/config/env/uat
+     sed -i.bak 's/springbatchboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springbatch-boilerplate/config/env/uat/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springbatch-boilerplate/config/env/local
+     sed -i.bak 's/springbatchboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springbatch-boilerplate/config/env/local/config.yaml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springbatch-boilerplate/src/main/resources
+     sed -i.bak 's/springbatch-boilerplate/'$RepoName'/g' /var/jenkins_home/workspace/springbatch-boilerplate/src/main/resources/bootstrap.yml
+     sed -i.bak 's/springbatchboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springbatch-boilerplate/src/main/resources/application.yml
+     sed -i.bak 's/springbatch-boilerplate/'$RepoName'/g' /var/jenkins_home/workspace/springbatch-boilerplate/src/main/resources/application.yml
+     sed -i.bak 's/springbatchboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springbatch-boilerplate/src/main/resources/logback-spring.xml
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springbatch-boilerplate
+     sed -i.bak 's/springbatchboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springbatch-boilerplate/build.gradle
+     sed -i.bak 's/springbatch-boilerplate/'$RepoName'/g' /var/jenkins_home/workspace/springbatch-boilerplate/build.gradle
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springbatch-boilerplate/src/main/java/com/walgreens/springbatchboilerplate/
+     sed -i.bak 's/springbatchboilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springbatch-boilerplate/src/main/java/com/walgreens/springbatchboilerplate/SpringBatchBoilerplateApplication.java
+     sed -i.bak 's/SpringBatchBoilerplate/'$MicroserviceName'/g' /var/jenkins_home/workspace/springbatch-boilerplate/src/main/java/com/walgreens/springbatchboilerplate/SpringBatchBoilerplateApplication.java
+     rm -rf *.bak
+
+     cd /var/jenkins_home/workspace/springbatch-boilerplate/src/main/java/com/walgreens/springbatchboilerplate/
+     mv SpringBatchBoilerplateApplication.java ${MicroserviceName}Application.java
+
+     cd /var/jenkins_home/workspace/springbatch-boilerplate/src/main/java/com/walgreens/
+     mv springbatchboilerplate ${MicroserviceName}
+
+     cd /var/jenkins_home/workspace/springbatch-boilerplate
+     rm -rf .git
+
+     git init
+     git add --all
+     git commit -m "Initial Commit"
+     git remote add origin https://ecomm-stash-int:EC0mPh0t0@wagwiki.wba.com/stash/scm/ecomm/$RepoName.git
+     git push -u origin master
+
+     git checkout -b configdevops
+     git checkout -b develop
+     git push -u origin configdevops develop
+
+     cd /var/jenkins_home/workspace/
+     rm -rf springbatch-boilerplate
+     
+  else
+      echo "Thank you" 
+  fi
+

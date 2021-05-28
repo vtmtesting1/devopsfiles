@@ -1,0 +1,43 @@
+schema: "1"
+id: BuildTemplateBatchQA3V1
+email: digital-ms-devops@walgreens.com
+metadata:
+  name: BuildTemplateBatchQA3V1
+  description: Pipeline Template to Build QA3 Batch V1
+  owner: digital-ms-devops@walgreens.com
+  scopes: [global]
+variables:
+- name: microserviceName
+  description: Name of the Microservice
+- name: TeamDL
+  description: Enter Your Team DL
+  example: ecomscm@walgreens.com
+configuration:
+  concurrentExecutions: {}
+  triggers: []
+  parameters: 
+  - default: feature/enhancement
+    description: Feature Branch name to build
+    name: FeatureBranch
+  notifications: []
+  description: "Trigger"
+stages:
+- id: BuildValidation
+  type: jenkins
+  name: BuildValidation
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-build-qa3-acs"
+    master: intops-jenkins
+    parameters:
+      FeatureBranch: "${ parameters.FeatureBranch }"
+      branchname: feature/enhancement
+    notifications:
+    - address: "{{ TeamDL }}"
+      level: stage
+      type: email
+      when:
+      - stage.failed
+    sendNotifications: true
+

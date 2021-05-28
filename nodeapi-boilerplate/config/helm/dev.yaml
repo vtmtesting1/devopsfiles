@@ -1,0 +1,110 @@
+microservicename: nodeapiboilerplate
+namespace: dotcom-app
+team: CS
+technology: NodeJS API
+listener: false
+environment: DEV
+
+replicaCount: 1
+
+image:
+  repository: nonprodregistry.azurecr.io/digital/dotcom/nodeapiboilerplate
+  version: latest
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: [ "name": "nonprodregistry" ]
+
+updateStrategy:
+  type: RollingUpdate
+  maxUnavailable: 25%
+  maxSurge: 25%
+
+serviceAccount: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+
+resources:
+  limits:
+    cpu: 0.5
+    memory: 1024Mi
+  requests:
+    cpu: 0.5
+    memory: 1024Mi
+
+#HPA Configuration - enable CPU and/or memory based on requirement
+autoscale:
+  minReplicas: 1
+  maxReplicas: 2
+  cpupercent: 60
+  memorypercent: 60 
+
+lifecycle:
+  postStart:
+    exec:
+      command:
+      - sh
+      - -c
+      - mkdir -p /usr/local/ecomm/app/podstartup /usr/local/ecomm/app/podshutdown;
+        cp /deployments/scripts/podstartup/* /usr/local/ecomm/app/podstartup/;
+        cp /deployments/scripts/podshutdown/* /usr/local/ecomm/app/podshutdown/;
+        chmod +x /usr/local/ecomm/app/podstartup/*.sh /usr/local/ecomm/app/podshutdown/*.sh;  
+        /usr/local/ecomm/app/podstartup/podstartup.sh
+  preStop:
+    exec:
+      command:
+      - sh
+      - -c
+      - /usr/local/ecomm/app/podshutdown/podshutdown.sh
+
+args: ENV_ACS=dev ENV_CPU_CORES=1 npm run start
+
+probetype: httpget
+
+livenessProbe: 
+#  failureThreshold: 1
+#  initialDelaySeconds: 240
+#  periodSeconds: 60
+#  successThreshold: 1
+#  timeoutSeconds: 3
+  url: nodeapiboilerplate/actuator/health
+readinessProbe: 
+#  failureThreshold: 1
+#  initialDelaySeconds: 30
+#  periodSeconds: 5
+#  successThreshold: 1
+#  timeoutSeconds: 2
+  url: nodeapiboilerplate/actuator/health
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+secrets:
+  jwtnode-secret:
+  - JWTNODE_REDIS_PASSWORD
+  voltage-node-secret:
+  - VOLTAGE_FPE_SECRET
+
+envVariables: {}
+#  testenv1: testvalue1
+
+configmaps:
+  - name: nodeapiboilerplate-config
+    subPath: app
+  - name: voltagenode-config
+    subPath: voltagenode
+
+pvc: common
+

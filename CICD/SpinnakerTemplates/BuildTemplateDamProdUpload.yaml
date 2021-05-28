@@ -1,0 +1,63 @@
+schema: "1"
+id: BuildTemplateDamUploadProdV1
+email: digital-ms-devops@walgreens.com
+metadata:
+  name: BuildTemplateDamUploadProdV1
+  description: Pipeline Template to Move assets to Prod Dam
+  owner: digital-ms-devops@walgreens.com
+  scopes: [global]
+variables:
+- name: microserviceName
+  description: Name of the Microservice
+- name: TeamDL
+  description: Enter Your Team DL
+  example: ecomscm@walgreens.com
+configuration:
+  concurrentExecutions: {}
+  triggers: []
+  parameters: 
+  - default: 1
+    description: Build number to deploy assets to dam server
+    name: buildnumber
+  notifications: []
+  description: "Trigger"
+stages:
+- id: Build
+  type: manualJudgment
+  name: BuildApproval
+  config:
+    failPipeline: true
+    instructions: Dev Manager/Devops to proceed this build
+    judgmentInputs:
+    - value: Approved
+    - value: Denied
+    notifications:
+    - address: "{{ TeamDL }}"
+      level: stage
+      type: email
+      when:
+      - manualJudgment
+      - manualJudgmentContinue
+      - manualJudgmentStop
+    sendNotifications: true
+    propagateAuthenticationContext: false
+- id: BuildValidation
+  type: jenkins
+  name: BuildValidation
+  dependsOn:
+  - Build
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-dam-prod"
+    master: intopsprd-jenkins
+    parameters:
+      buildnumber: "${ parameters.buildnumber }"
+    notifications:
+    - address: "{{ TeamDL }}"
+      level: stage
+      type: email
+      when:
+      - stage.failed
+    sendNotifications: true
+

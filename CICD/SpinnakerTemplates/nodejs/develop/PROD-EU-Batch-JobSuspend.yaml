@@ -1,0 +1,66 @@
+schema: "1"
+id: NodeBatchProdEUSuspendJobRunTemplateV1
+metadata:
+  name: Node Batch Suspend Job Run - Prod EU
+  description: Node Batch Suspend Job Run Pipeline Template - Prod EU
+  owner: digital-ms-devops@walgreens.com
+  scopes: [global]
+variables:
+- name: microserviceName
+  description: Name of the Microservice
+- name: TeamName
+  description: Enter Your Team Name
+  example: Devops
+  defaultValue: Devops  
+- name: TeamDL
+  description: Enter Your Team DL
+  example: ecomscm@walgreens.com
+configuration:
+  concurrentExecutions:
+    limitConcurrent: true
+    parallel: false
+  triggers: []
+  parameters:
+  - default: 'true'
+    description: Choose true to suspend or false to enable the job
+    hasOptions: true
+    label: Suspend
+    name: suspend
+    options:
+    - value: 'true'
+    - value: 'false'
+    pinned: true
+    required: true
+  notifications: []
+  description: ""
+stages:
+- id: Approval
+  type: manualJudgment
+  name: JobRunApproval
+  config:
+    failPipeline: true
+    instructions: Dev Manager/Devops/OC approval to suspend the job
+    judgmentInputs: []
+    notifications:
+    - address: "{{ TeamDL }}"
+      level: stage
+      type: email
+      when:
+      - manualJudgment
+      - manualJudgmentContinue
+      - manualJudgmentStop
+    sendNotifications: true
+    propagateAuthenticationContext: false
+- id: suspendJobRunProdEU
+  type: jenkins
+  name: Suspend Cronjob PROD-EU
+  dependsOn:
+  - Approval
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-jobsuspend-prod-eu"
+    master: intopsprd-jenkins
+    parameters:
+      suspend: "${ parameters.suspend }"
+

@@ -1,0 +1,23 @@
+{
+	"schema": "v2",
+	"name": "nodeapiboilerplate-feature-deploy-v2",
+	"application": "nodeapiboilerplate",
+	"template": {
+		"artifactAccount": "front50ArtifactCredentials",
+		"reference": "spinnaker://APIUIFeatureCDTemplateV2",
+		"type": "front50/pipelineTemplate"
+	},
+	"variables": {
+		"microserviceName": "nodeapiboilerplate",
+		"microserviceRepoName": "node-api-boilerplate",
+		"teamDL": "teamDL@walgreens.com",
+		"nameSpace": "dotcom-app"
+	},
+	"exclude": [],
+	"triggers": [],
+	"parameters": [],
+	"notifications": [],
+	"description": "",
+	"stages": []
+}
+

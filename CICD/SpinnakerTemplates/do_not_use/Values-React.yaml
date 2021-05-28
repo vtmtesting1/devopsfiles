@@ -1,0 +1,28 @@
+schema: "1"
+pipeline:
+  application: reactuiboilerplate
+  name: reactuiboilerplate-feature-build
+  template:
+    source: spinnaker://BuildTemplateFeatureV1
+  variables:
+    microserviceName: reactuiboilerplate
+    minCPU: 1
+    maxCPU: 2
+    minMemory: 1024Mi
+    maxMemory: 2048Mi
+    minNumberOfReplicas: 1
+    maxNumberOfReplicas: 2
+    cpuUtilizationTargetForAutoScaling: 60
+    livelinessURL: /reactuiboilerplate/v1/health
+    TeamName: dpf
+    TeamDL: teamDL@walgreens.com
+    args: npm run start
+    secretEnvVariables: 
+    - ENV_REDIS_SERVER_PASSWORD
+    - ENV_REDIS_SERVER_USER
+configuration:
+  inherit:
+  - triggers
+  - expectedArtifacts
+  - stages
+  - parameters

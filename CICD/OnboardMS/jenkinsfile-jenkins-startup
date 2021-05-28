@@ -1,0 +1,21 @@
+/* (c) Walgreen Co. All rights reserved.*/
+node {
+    properties([
+        [$class: 'BuildDiscarderProperty', strategy: [$class: 'LogRotator', numToKeepStr: '10']],
+        disableConcurrentBuilds()
+    ])
+    stage('Docker Login') {
+        try {
+            sh '''#!/bin/bash +x
+            docker login -u nonprodregistry -p 8x+uo/0bO/5FbG=p8UZA/ZLdtITfLOqR nonprodregistry.azurecr.io
+            docker login -u 48faf824-8445-4813-96d4-5d85638702e5 -p Fsko.WgPra0D+]bC6.SpU14yrsPT/Cby wagdigitaldotcomprod.azurecr.io
+            docker login -u 48faf824-8445-4813-96d4-5d85638702e5 -p Fsko.WgPra0D+]bC6.SpU14yrsPT/Cby wagdigital.azurecr.io
+            docker login -u wagdigitaldotcomprodacr -p 64u1i1WmVaXcsv+VGJil6i8rx4bFjHnT wagdigitaldotcomprodacr.azurecr.io'''
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+}
+

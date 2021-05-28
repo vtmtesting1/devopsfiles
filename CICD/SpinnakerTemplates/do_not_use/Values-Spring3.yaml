@@ -1,0 +1,33 @@
+schema: "1"
+pipeline:
+  application: csfamilymgmt
+  name: csfamilymgmt-dev-deploy
+  template:
+    source: spinnaker://DeployPipelineTemplateV8
+  variables:
+    microserviceName: csfamilymgmt
+    minCPU: 0.1
+    maxCPU: 4
+    minMemory: 512Mi
+    maxMemory: 1024Mi
+    minNumberOfReplicas: 1
+    maxNumberOfReplicas: 2
+    cpuUtilizationTargetForAutoScaling: 60
+    livelinessURL: /csfamilymgmt/health
+    TeamName: dpf
+    TeamDL: ecomcsdevonsite@walgreens.com
+    args: java -jar /usr/local/ecomm/app/csfamilymgmt.jar --spring.config.additional-location=/deployments/config/config.yaml,/deployments/config/bootstrap.yaml
+    secretEnvVariables:
+    - secretName: team-backend-instance-1
+      envVars:
+      - backend_username
+      - backend_password
+    - secretName: team-backend-instance-2
+      envVars:
+      - backend_jkspassword
+configuration:
+  inherit:
+  - triggers
+  - expectedArtifacts
+  - stages
+  - parameters

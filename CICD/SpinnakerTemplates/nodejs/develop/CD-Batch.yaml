@@ -1,0 +1,132 @@
+schema: "1"
+id: NodeBatchDevelopCDTemplateV1
+metadata:
+  name: Node Batch CD Template - Develop Branch
+  description: Node Batch Continuous Delivery Pipeline Template - Develop Branch
+  owner: digital-ms-devops@walgreens.com
+  scopes: [global]
+variables:
+- name: microserviceName
+  description: Name of the Microservice
+- name: TeamName
+  description: Enter Your Team Name
+  example: Devops
+  defaultValue: Devops    
+- name: TeamDL
+  description: Enter Your Team DL
+  example: ecomscm@walgreens.com
+configuration:
+  concurrentExecutions:
+    limitConcurrent: true
+    parallel: false
+  triggers:
+  - account: prodregistry
+    enabled: true
+    name: unnamed0
+    organization: digital/dotcom
+    registry: wagdigital.azurecr.io
+    repository: digital/dotcom/{{ microserviceName }}
+    runAsUser: spinnaker-svc-account
+    status:
+    - successful
+    tag: ".*"
+    type: docker
+  parameters: []
+  notifications: []
+  description: ""
+stages:
+# - id: DeployQA
+#   type: manualJudgment
+#   name: Manual Judgement
+#   config:
+#     failPipeline: true
+#     instructions: Dev Manager/Devops to Approve for QA Deployment
+#     judgmentInputs: []
+#     notifications:
+#     - address: "{{ TeamDL }}"
+#       level: stage
+#       type: email
+#       when:
+#       - manualJudgment
+#       - manualJudgmentContinue
+#       - manualJudgmentStop
+#     sendNotifications: false
+#     propagateAuthenticationContext: false
+- id: configureQA
+  type: jenkins
+  name: Configure QA
+  # dependsOn:
+  # - DeployQA
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-configmap-qa"
+    master: intopsprd-jenkins
+    notifications:
+    - address: "{{ TeamDL }}"
+      level: stage
+      type: email
+      when:
+      - stage.failed
+    sendNotifications: true
+    parameters: {}
+- id: deployToQA
+  type: jenkins
+  name: Deploy to QA
+  dependsOn:
+  - configureQA
+  config:
+    notifications:
+    - address: "{{ TeamDL }}"
+      level: stage
+      type: email
+      when:
+      - stage.failed
+    sendNotifications: true
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-deploy-qa"
+    master: intopsprd-jenkins
+    parameters: {
+    "buildnumber": "${trigger['tag']}"
+    }
+- id: ProceedToWWW3
+  type: manualJudgment
+  name: Manual Judgment
+  dependsOn:
+  - deployToQA
+  config:
+    failPipeline: true
+    instructions: "Proceed Build #${trigger['tag']} to WWW3?"
+    judgmentInputs: []
+    notifications:
+    - address: "{{ TeamDL }}"
+      level: stage
+      type: email
+      when:
+      - manualJudgment
+      - manualJudgmentContinue
+      - manualJudgmentStop
+    sendNotifications: false
+    propagateAuthenticationContext: false
+- id: promoteToProd
+  type: jenkins
+  name: Promote to Prod
+  dependsOn:
+  - ProceedToWWW3
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-promote-to-prod"
+    master: intopsprd-jenkins
+    notifications:
+    - address: "{{ TeamDL }}"
+      level: stage
+      type: email
+      when:
+      - stage.failed
+    sendNotifications: true
+    parameters: {
+    "buildnumber": "${trigger['tag']}"
+    }
+

@@ -1,0 +1,22 @@
+InstallCronJobs() {
+	if [ -d "config/cron" ]; then
+		for JOBNAME in $(find config/cron -type d -mindepth 1 -maxdepth 1)
+		do
+			echo -e "\nSetting up CronJob under '${JOBNAME}'.."
+			for YAML in $(ls ${JOBNAME}/yaml/*.y*ml | sort -r)
+			do
+				echo ${YAML}
+				${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete -f ${YAML}
+			done
+
+			echo -e "\nSleeping for 15 seconds..\n"
+			sleep 15
+
+			for YAML in $(ls ${JOBNAME}/yaml/*.y*ml)
+			do
+				echo ${YAML}
+				${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" create -f ${YAML}
+			done
+		done
+	fi
+}

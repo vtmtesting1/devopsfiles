@@ -1,0 +1,68 @@
+schema: "1"
+id: BuildTemplateDevelopV1
+email: digital-ms-devops@walgreens.com
+metadata:
+  name: BuildTemplateDevelopV1
+  description: Pipeline Template to Build Develop V1
+  owner: digital-ms-devops@walgreens.com
+  scopes: [global]
+variables:
+- name: microserviceName
+  description: Name of the Microservice
+- name: repoName
+  description: Name of the stash repository
+- name: TeamDL
+  description: Enter Your Team DL
+  example: ecomscm@walgreens.com
+configuration:
+  concurrentExecutions: {}
+  triggers:
+  - branch: develop
+    enabled: false
+    name: unnamed0
+    project: ECOMM
+    runAsUser: spinnaker-svc-account
+    slug: "{{ repoName }}"
+    source: stash
+    type: git
+  notifications: []
+  description: "Trigger"
+stages:
+# - id: Build
+#   type: manualJudgment
+#   name: BuildApproval
+#   config:
+#     failPipeline: true
+#     instructions: Dev Manager/Devops to proceed this build
+#     judgmentInputs:
+#     - value: Approved
+#     - value: Denied
+#     notifications:
+#     - address: "{{ TeamDL }}"
+#       level: stage
+#       type: email
+#       when:
+#       - manualJudgment
+#       - manualJudgmentContinue
+#       - manualJudgmentStop
+#     sendNotifications: true
+#     propagateAuthenticationContext: false
+- id: BuildValidation
+  type: jenkins
+  name: BuildValidation
+  # dependsOn:
+  # - Build
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-build"
+    master: intopsprd-jenkins
+    notifications:
+    - address: "{{ TeamDL }}"
+      level: stage
+      type: email
+      when:
+      - stage.failed
+    sendNotifications: true
+    parameters: {}
+

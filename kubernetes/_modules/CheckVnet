@@ -1,0 +1,13 @@
+CheckVnet() {
+	_VNET_COUNT=`${AZ} network vnet list --query "[?(location=='${AZURE_REGION}' && name=='${VNET_NAME}')].{name: name, resourceGroup: resourceGroup}" --output tsv`
+
+	if [ "${_VNET_COUNT}" == "" ]; then
+		echo -e "\nERROR: VNET '${VNET_NAME}' could not be found in '${AZURE_REGION}' region. Aborting!!!\n"
+		exit 93
+	else
+		_VNET=`echo ${_VNET_COUNT} | awk '{ print $1 }'`
+		_RESOURCE_GROUP=`echo ${_VNET_COUNT} | awk '{ print $2 }'`
+
+		echo -e "\nFound VNet '${_VNET}' in Resource Group '${_RESOURCE_GROUP}'"
+	fi
+}

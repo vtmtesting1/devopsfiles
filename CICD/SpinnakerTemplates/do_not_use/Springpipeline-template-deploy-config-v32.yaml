@@ -1,0 +1,36 @@
+schema: "1"
+pipeline:
+  application: productsearch 
+  name: deploySpring
+  template:
+    source: spinnaker://springDeployPipelineTemplateV3
+  variables:
+    microserviceName: productsearch
+    minCPU: 1
+    maxCPU: 2
+    minMemory: 1024Mi
+    maxMemory: 2048Mi
+    minNumberOfReplicas: 1
+    maxNumberOfReplicas: 3
+    cpuUtilizationTargetForAutoScaling: 60
+    livelinessURL: /productsearch/v1/healths
+    readinessURL: 
+    appEnvVariables:
+    - test_env
+    - cassandra_contactpoints
+    - cassandra_username
+    - cassandra_password
+    - spring_profiles_active
+    - server_ssl_enabled
+    - index
+    - relevancey_appid
+    - com_walgreens_core_elastic_search_url
+    - com_walgreens_search_elastic_transport_client_clustername
+    - com_walgreens_search_elastic_transport_client_servers
+    - logPath
+    - server_tomcat_basedir
+    - test_envs
+    
+    
+    
+

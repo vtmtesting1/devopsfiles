@@ -1,0 +1,440 @@
+schema: "1"
+id: NodeJSAPIUIDAMFeatureCDTemplateV1
+metadata:
+  name: Node JS API/UI CD Template - Feature Branch
+  description: Node JS API/UI Continuous Delivery Pipeline Template - Feature Branch
+  owner: digital-ms-devops@walgreens.com
+  scopes:
+  - global
+variables:
+- name: microserviceName
+  description: Name of the Microservice
+- name: minCPU
+  description: Minimum CPU needed for the Microservice
+  example: 1, 0.5, 0.25 [in core(s)]
+- name: maxCPU
+  description: Maximum number of core that can be allocated for the Microservice
+  example: 1, 0.5, 0.25 [in core(s)]
+- name: minMemory
+  description: Minimum memory needed for the Microservice
+  example: 1024Mi, 512Mi, 256Mi [in MB]
+- name: maxMemory
+  description: Maximum memory that can be allocated for the Microservice
+  example: 1024Mi, 512Mi, 256Mi [in MB]
+- name: minNumberOfReplicas
+  description: Minimum number of replicas
+  example: 1, 2, 3, 4
+- name: maxNumberOfReplicas
+  description: Maximum number of replicas
+  example: 1, 2, 3, 4
+- name: cpuUtilizationTargetForAutoScaling
+  description: CPU utilization target for scaling
+  example: 80, 60, 40
+- name: livelinessURL
+  description: Health URL of the Microservice
+  example: /{microserviceName}/v1/health
+- name: args
+  description: Arguments to start the application
+  example: java -jar -Xms256m -Xmx256m /usr/local/ecomm/app/ms-svc.jar 
+- name: TeamDL
+  description: Enter Your Team DL
+  example: ecomscm@walgreens.com
+- name: TeamName
+  description: Enter Your Team Name
+  example: Devops
+  defaultValue: Devops
+- name: secrets
+  type: list
+- name: configMaps
+  type: list
+- name: envVariables
+  type: list
+- name: persistentVolumeClaims
+  description: Persistent Volume Claims
+  type: list
+  defaultValue:
+  - claimName: placeholder
+- name: nameSpace
+  description: Deployment Cluster Namespace
+  defaultValue: dotcom-app
+- name: uploadTodam
+  description: Upload the assets to Dam
+  type: boolean
+configuration:
+  concurrentExecutions:
+    limitConcurrent: true
+    parallel: false
+  triggers:
+  - account: nonprodregistry
+    enabled: true
+    name: unnamed0
+    organization: digital/dotcom
+    registry: nonprodregistry.azurecr.io
+    repository: digital/dotcom/{{ microserviceName }}
+    runAsUser: spinnaker-svc-account
+    status:
+    - successful
+    tag: ".*"
+    type: docker
+  parameters: []
+  notifications: []
+  description: ""
+stages:
+- id: configureDev
+  type: jenkins
+  name: Configure DEV
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-configmap-dev-feature"
+    master: intops-jenkins
+    parameters: {}
+- id: deployToDev
+  type: deploy
+  name: Deploy to Dev
+  dependsOn:
+  - configureDev
+  config:
+    notifications:
+    - address: "{{ TeamDL }}"
+      level: stage
+      type: email
+      when:
+      - stage.failed
+    sendNotifications: true
+    parameters: {}
+    clusters:
+    - account: dcomdev03
+      application: "{{ microserviceName }}"
+      cloudProvider: kubernetes
+      capacity:
+        max: "{{ maxNumberOfReplicas }}"
+        min: "{{ minNumberOfReplicas }}"
+      containers:
+      - args: ["{{ args }}"]
+        command: ["/bin/sh", "-c"]
+        envVars: |
+          {% for secret in secrets %}
+          {% for envVar in secret.envVars %}
+          - {% module secretsEnvSourceModule envName=envVar secretName=secret.name %}
+          {% endfor %}
+          {% endfor %}
+          {% for envVariable in envVariables %}
+          - {% module envVarsModule name=envVariable.name value=envVariable.value %}
+          {% endfor %}
+          - envSource:
+              configMapSource:
+                configMapName: cms-config
+                key: ENV_CMS_PREVIEW
+            name: ENV_CMS_PREVIEW
+        imageDescription:
+          account: nonprodregistry
+          fromTrigger: true
+          imageId: "nonprodregistry.azurecr.io/digital/dotcom/{{ microserviceName }} (Tag resolved at runtime)"
+          registry: nonprodregistry.azurecr.io
+          repository: digital/dotcom/{{ microserviceName }}
+        imagePullPolicy: ALWAYS
+        lifecycle:
+          postStart:
+            execAction:
+              commands:
+              - sh
+              - -c
+              - mkdir -p /usr/local/ecomm/app/podstartup /usr/local/ecomm/app/podshutdown;
+                cp /deployments/scripts/podstartup/* /usr/local/ecomm/app/podstartup/;
+                cp /deployments/scripts/podshutdown/* /usr/local/ecomm/app/podshutdown/;
+                chmod +x /usr/local/ecomm/app/podstartup/*.sh /usr/local/ecomm/app/podshutdown/*.sh;
+                /usr/local/ecomm/app/podstartup/podstartup.sh
+            type: EXEC
+          preStop:
+            execAction:
+              commands:
+              - sh
+              - -c
+              - /usr/local/ecomm/app/podshutdown/podshutdown.sh
+            type: EXEC
+        limits:
+          cpu: "{{ maxCPU }}"
+          memory: "{{ maxMemory }}"
+        livenessProbe:
+          failureThreshold: 3
+          handler:
+            execAction:
+              commands:
+              - curl
+              - -s
+              - -f
+              - http://localhost:8080/{{ livelinessURL }}
+            httpGetAction:
+              httpHeaders: []
+              path: "{{ livelinessURL }}"
+              port: 8080
+              uriScheme: HTTP
+            tcpSocketAction:
+              port: 80
+            type: EXEC
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          failureThreshold: 2
+          timeoutSeconds: 2
+        name: "{{ microserviceName }}"
+        ports:
+        - containerPort: 8080
+          hostIp:
+          hostPort:
+          name: http
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          handler:
+            execAction:
+              commands:
+              - curl
+              - -s
+              - -f
+              - http://localhost:8080/{{ livelinessURL }}
+            httpGetAction:
+              httpHeaders: []
+              path: "{{ livelinessURL }}"
+              port: 8080
+              uriScheme: HTTP
+            tcpSocketAction:
+              port: 80
+            type: EXEC
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          failureThreshold: 2
+          timeoutSeconds: 2
+        requests:
+          cpu: "{{ minCPU }}"
+          memory: "{{ minMemory }}"
+        volumeMounts: |
+          {% for secret in secrets %}
+          - {% module volumeMountModule path="/deployments/secrets" name=secret.name %}
+          {% endfor %}
+          {% for configMap in configMaps %}
+          - {% module volumeMountWithSubpathModule path="/deployments/config" name=configMap.name subPath=configMap.subPath %}
+          {% endfor %}
+          {% for persistentVolumeClaim in persistentVolumeClaims %}
+          - {% module volumeMountModule path="/deployments/fileshare" name=persistentVolumeClaim.claimName %}
+          {% endfor %}
+          - mountPath: "/deployments/logs"
+            name: "applogs"
+            readOnly: false
+          - mountPath: "/deployments/cache/voltage"
+            name: "voltagecache"
+            readOnly: false
+          - mountPath: "/deployments/cache/app"
+            name: "appcache"
+            readOnly: false
+          - mountPath: "/deployments/scripts/podstartup"
+            name: "podstartup-config"
+            readOnly: false
+          - mountPath: "/deployments/scripts/podshutdown"
+            name: "podshutdown-config"
+            readOnly: false
+          - mountPath: "/deployments/secrets/podstartup-secret"
+            name: "podstartup-secret"
+            readOnly: false
+      deployment:
+        deploymentStrategy:
+          rollingUpdate:
+            maxSurge: 1
+            maxUnavailable: 1
+          type: RollingUpdate
+        enabled: false
+        minReadySeconds: 0
+      dnsPolicy: ClusterFirst
+      interestingHealthProviderNames:
+      - KubernetesContainer
+      - KubernetesPod
+      loadBalancers:
+      - "{{ microserviceName }}"
+      maxRemainingAsgs: 3
+      namespace: "{{ nameSpace }}"
+      nodeSelector: {}
+      podAnnotations: {}
+      provider: kubernetes
+      region: "{{ nameSpace }}"
+      replicaSetAnnotations:
+        team: "{{ TeamName }}"
+        technology: NodeJS UI
+      scaleDown: true
+      scalingPolicy:
+        cpuUtilization:
+          target: "{{ cpuUtilizationTargetForAutoScaling }}"
+      strategy: redblack
+      targetSize: 1
+      terminationGracePeriodSeconds: 30
+      volumeSources: |
+        {% for secret in secrets %}
+        - {% module secretVolumeSourceModule name=secret.name %}
+        {% endfor %}
+        {% for configMap in configMaps %}
+        - {% module configMapVolumeSourceModule name=configMap.name %}
+        {% endfor %}
+        {% for persistentVolumeClaim in persistentVolumeClaims %}
+        - {% module pvcVolumeSourceModule name=persistentVolumeClaim.claimName %}
+        {% endfor %}
+        - hostPath:
+            path: "/appdata/disk1/logs"
+          name: applogs
+          type: HOSTPATH
+        - hostPath:
+            path: "/tmp/cache/voltage"
+          name: voltagecache
+          type: HOSTPATH
+        - hostPath:
+            path: "/tmp/cache/app"
+          name: appcache
+          type: HOSTPATH
+        - configMap:
+            configMapName: podstartup-config
+          name: podstartup-config
+          type: CONFIGMAP
+        - configMap:
+            configMapName: podshutdown-config
+          name: podshutdown-config
+          type: CONFIGMAP
+        - secret:
+            secretName: podstartup-secret
+          name: podstartup-secret
+          type: SECRET
+- id: FunctionalTest
+  type: jenkins
+  name: Functional Test
+  dependsOn:
+  - deployToDev
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-functional-test-feature"
+    master: intops-jenkins
+    notifications:
+    - address: "{{ TeamDL }}"
+      level: stage
+      type: email
+      when:
+      - stage.failed
+    parameters:
+    sendNotifications: true
+    parameters: {}
+- id: Damstaging
+  type: jenkins
+  name: Dam staging upload
+  dependsOn:
+  - FunctionalTest
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-dam-dev"
+    master: intops-jenkins
+    parameters:
+      uploadTodam: "{{uploadTodam}}"
+      buildnumber: "${trigger['tag']}"
+    notifications:
+    - address: "{{ TeamDL }}"
+      level: stage
+      type: email
+      when:
+      - stage.failed
+    sendNotifications: true
+- id: UIPerfTest
+  type: jenkins
+  name: UI Perf Test
+  dependsOn:
+  - Damstaging
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-ui-perf-test-feature"
+    master: intops-jenkins
+    notifications:
+    - address: "{{ TeamDL }}"
+      level: stage
+      type: email
+      when:
+      - stage.failed
+    parameters:
+    sendNotifications: true
+    parameters: {}
+partials: []
+modules:  
+- id: secretsEnvSourceModule
+  usage: Defines the env source for exposing secrets as env variables
+  variables:
+  - name: envName
+    description: env variable name
+  - name: secretName
+    description: Secret Name
+  definition:
+    envSource:
+      secretSource:
+        secretName: "{{ secretName }}"
+        key: "{{ envName }}"
+    name: "{{ envName }}"
+- id: volumeMountModule
+  usage: Defines the volume mount of a container
+  variables:
+  - name: name
+    description: mount source name
+  - name: path
+    description: mount path
+  definition:
+    mountPath: "{{ path }}/{{ name }}"
+    name: "{{ name }}"
+    readOnly: false
+- id: volumeMountWithSubpathModule
+  usage: Defines the volume mount of a container
+  variables:
+  - name: name
+    description: mount source name
+  - name: path
+    description: mount path
+  - name: subPath
+    description: subpath
+  definition:
+    mountPath: "{{ path }}/{{ subPath }}"
+    name: "{{ name }}"
+    readOnly: false
+- id: secretVolumeSourceModule
+  usage: Defines volume source for secrets
+  variables:
+  - name: name
+    description: secret name
+  definition:
+    name: "{{ name }}"
+    secret:
+      secretName: "{{ name }}"
+    type: SECRET
+- id: configMapVolumeSourceModule
+  usage: Defines volume source for config maps
+  variables:
+  - name: name
+    description: config map name
+  definition:
+    name: "{{ name }}"
+    configMap:
+      configMapName: "{{ name }}"
+    type: CONFIGMAP
+- id: pvcVolumeSourceModule
+  usage: Defines volume source for pvc
+  variables:
+  - name: name
+    description: claim name
+  definition:
+    name: "{{ name }}"
+    persistentVolumeClaim:
+      claimName: "{{ name }}"
+    type: PERSISTENTVOLUMECLAIM
+- id: envVarsModule
+  usage: Defines the ENV vars and values
+  variables:
+  - name: name
+    description: ENV variable name
+  - name: value
+    description: ENV variable value
+  definition:
+    name: "{{ name }}"
+    value: "{{ value }}"
+

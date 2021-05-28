@@ -1,0 +1,62 @@
+ACSDeployment() {
+	if [ -d _output/${CLUSTER_NAME} ]; then
+		_TIMESTAMP=`date +%Y_%m_%d-%H-%M-%S`
+		echo -e "\nWARNING: Folder _output/${CLUSTER_NAME} already exists. Renaming it to _output/${CLUSTER_NAME}_${_TIMESTAMP}"
+		mv _output/${CLUSTER_NAME} _output/${CLUSTER_NAME}_${_TIMESTAMP}
+	fi
+
+	echo -e "\nGenerating ARM templates for deploying ACS cluster.."
+	${ACSENGINE} generate ${TEMPLATE_PREFIX}-${CLUSTER_NAME}.json
+
+	_UPN=`${AZ} account list --query "[?name=='${AZURE_SUBSCRIPTION_NAME}'].user.name" -o tsv`
+	_DEPLOYER=`${AZ} ad user show --upn-or-object-id "${_UPN}" --query "[givenName,surname]" -o tsv | tr '\n' ' '`
+	_DEPLOYER=${_DEPLOYER%?}
+	_DEPLOY_DATE=`date "+%m/%d/%Y"`
+	cat ${TEMPLATE_PREFIX}-tags.template | sed "s|DEPLOYER|${_DEPLOYER}|g" | sed "s|DEPLOY_DATE|${_DEPLOY_DATE}|g" > ${TEMPLATE_PREFIX}-tags-${CLUSTER_NAME}.values
+	cat _output/${CLUSTER_NAME}/azuredeploy.json | sed "s|\"tags\": {}|\"tags\": {\\`echo -e '\n\r'`        \"resourceNameSuffix\": \"[parameters('nameSuffix')]\"\\`echo -e '\n\r'`        }|g" | sed '/"tags": {/r '"${TEMPLATE_PREFIX}-tags-${CLUSTER_NAME}.values" > _output/${CLUSTER_NAME}/azuredeploy.json.tmp
+
+	#############################################################################################################
+	# The following was a temporary bug fix to add apiVersionDefault to azuredeploy.json to allow Chef extension
+	# to work with the latest versions of acs-engine / aks-engine (> v0.20.7). Not needed anymore because the
+	# bootstrap extension has been updated to use a different variable name.
+	#
+	# This logic can also be extended to manipulate any key/value pair in azuredeploy.json
+	#############################################################################################################
+
+	# grep -q -F '.*"apiVersionDefault": "*-*-*".*' _output/${CLUSTER_NAME}/azuredeploy.json.tmp
+	# if [ $? -ne 0 ]; then
+	#	_API_VERSION_DEFAULT='    "apiVersionDefault": "2018-10-01",'
+	#	echo -e "\nINFO: Adding ${_API_VERSION_DEFAULT} to _output/${CLUSTER_NAME}/azuredeploy.json\n"
+	#	cat _output/${CLUSTER_NAME}/azuredeploy.json.tmp | awk -v label="$_API_VERSION_DEFAULT" '/  "variables": {/{ print; print label; next }1' > _output/${CLUSTER_NAME}/azuredeploy.json.tmp.apiversiondefault
+	#	mv _output/${CLUSTER_NAME}/azuredeploy.json.tmp.apiversiondefault _output/${CLUSTER_NAME}/azuredeploy.json.tmp
+	# fi
+
+	mv _output/${CLUSTER_NAME}/azuredeploy.json.tmp _output/${CLUSTER_NAME}/azuredeploy.json
+
+	#############################################################################################################
+	# We can hardcode the OS version of the nodes in ACS cluster by unhashing this section
+	# This logic can also be extended to manipulate any key/value pair in azuredeploy.parameters.json
+	#############################################################################################################
+
+	# _UBUNTU_VERSION='      "value": "16.04.201806120"'
+
+	# echo -e "\nINFO: Replacing OS release with 'Ubuntu ${_UBUNTU_VERSION}' release in _output/${CLUSTER_NAME}/azuredeploy.parameters.json\n"
+	# cat _output/${CLUSTER_NAME}/azuredeploy.parameters.json | awk -v version="$_UBUNTU_VERSION" '/osImageVersion/{print;getline;$0=version}1' > _output/${CLUSTER_NAME}/azuredeploy.parameters.json.tmp
+	# mv _output/${CLUSTER_NAME}/azuredeploy.parameters.json.tmp _output/${CLUSTER_NAME}/azuredeploy.parameters.json
+
+	#############################################################################################################
+	# Following is a bug fix for aks-engine v0.28.0 when setting "cloudProviderRateLimit": false in ACS template
+	#############################################################################################################
+
+	# grep -q '.*"cloudProviderRateLimitBucket": 0,.*' _output/${CLUSTER_NAME}/azuredeploy.parameters.json
+	# if [ $? -ne 0 ]; then
+	# 	_RATE_LIMIT_BUCKET='        "cloudProviderRateLimitBucket": 0,\n        "cloudProviderRateLimitQPS": "0"'
+	# 	echo -e "\nINFO: Adding the following lines to _output/${CLUSTER_NAME}/azuredeploy.parameters.json\n${_RATE_LIMIT_BUCKET}\n"
+	# 	cat _output/${CLUSTER_NAME}/azuredeploy.parameters.json  | awk -v label="$_RATE_LIMIT_BUCKET" '/cloudProviderRateLimit/{print;getline;$0=label}1' > _output/${CLUSTER_NAME}/azuredeploy.parameters.json.tmp
+	# 	mv _output/${CLUSTER_NAME}/azuredeploy.parameters.json.tmp _output/${CLUSTER_NAME}/azuredeploy.parameters.json
+	# fi
+    read -p "Press enter to continue"
+	echo -e "\nInitiating deployment '${AZURE_RESOURCE_GROUP}-deploy' for ACS cluster '${CLUSTER_NAME}'.."
+	${AZ} group deployment create --name "${AZURE_RESOURCE_GROUP}-deploy" --resource-group "${AZURE_RESOURCE_GROUP}" --template-file "./_output/${CLUSTER_NAME}/azuredeploy.json" --parameters "./_output/${CLUSTER_NAME}/azuredeploy.parameters.json" > /dev/null
+
+}

@@ -1,0 +1,22 @@
+SetSubscriptionID() {
+	if [ "${AZURE_SUBSCRIPTION_NAME}" == "" ]; then
+		echo -e "\nERROR: Azure Subscription Name not set. Aborting!!!\n"
+		exit 96
+	fi
+
+	echo -e "\nSetting Subcription ID for Azure Subscription '${AZURE_SUBSCRIPTION_NAME}'"
+	SUBSCRIPTION_ID=`${AZ} account show -s "${AZURE_SUBSCRIPTION_NAME}" --output tsv | awk '{ print $2 }'`
+
+	if [ "${SUBSCRIPTION_ID}" == "" ]; then
+		echo -e "\nERROR: Azure Subscription ID not found. Aborting!!!\n"
+		exit 95
+	else
+		${AZ} account set --subscription ${SUBSCRIPTION_ID} > /dev/null 2>&1
+		if [ $? -ne 0 ]; then
+			echo -e "\nERROR: Azure Subscription ID could not be set. Aborting!!!\n"
+			exit 94
+		else
+			echo -e "\nAzure Subscription ID set to '${SUBSCRIPTION_ID}'"
+		fi
+	fi
+}

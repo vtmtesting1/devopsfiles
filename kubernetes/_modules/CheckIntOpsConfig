@@ -1,0 +1,25 @@
+CheckIntOpsConfig() {
+	CONFIG=$1
+
+	_MODULE_NAME="${LIGHT_BLUE}${FUNCNAME[ 0 ]}${NO_COLOR}"
+
+	[[ -z "${INTOPS_SETTINGS}" ]] && echo -e "\n${_MODULE_NAME}${LIGHT_BLUE}:${LINENO}${NO_COLOR} - ${RED}ERROR: Unable to proceed because the variable ${LIGHT_CYAN}'INTOPS_SETTINGS'${RED} is not defined in the module. Check if you have sourced the ${LIGHT_BLUE}'Vars'${RED} module in the main script. Exiting..${NO_COLOR}\n" && exit 80
+
+	[[ -z "${CONFIG}" ]] && echo -e "\n${_MODULE_NAME}${LIGHT_BLUE}:${LINENO}${NO_COLOR} - ${RED}ERROR: Unable to proceed because a Config filename was not passed for ${LIGHT_BLUE}'${FUNCNAME[ 0 ]}'${RED} function. Exiting${NO_COLOR}\n" && exit 60
+
+	if [ -f ${CONFIG} ]; then
+		source ${CONFIG}
+		for SETTING in ${INTOPS_SETTINGS}
+		do
+			[ "${SETTING}" == "\\" ] && continue
+			if [[ ! -n "${!SETTING}" ]]; then
+				echo -e "\n${_MODULE_NAME}${LIGHT_BLUE}:${LINENO}${NO_COLOR} - ${RED}ERROR: ${LIGHT_CYAN}'${SETTING}'${RED} was not found or defined in `pwd`/${CONFIG}. Exiting...\n\n${NO_COLOR}"
+				exit 50
+			fi
+		done
+	else
+		echo -e "\n${_MODULE_NAME}${LIGHT_BLUE}:${LINENO}${NO_COLOR} - ${AMBER}WARNING: Config file '${CONFIG}' was not found. Specify the following values explicitly at the top section of the Installation script itself.\n\n${WHITE}Press ENTER to continue..${NO_COLOR}\n"
+		read _INPUT
+	fi
+	echo
+}

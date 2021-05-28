@@ -1,0 +1,42 @@
+schema: "1"
+id: FunctionalTestTemplateV1
+metadata:
+  name: Functional Test Template
+  description: Functional Test Pipeline Template
+  owner: digital-ms-devops@walgreens.com
+  scopes:
+  - global
+variables:
+- name: microserviceName
+  description: Name of the Microservice
+- name: TeamDL
+  description: Enter Your Team DL
+  example: ecomscm@walgreens.com
+configuration:
+  concurrentExecutions:
+    limitConcurrent: true
+    parallel: false
+  triggers: []
+  parameters: []
+  notifications: []
+  description: ""
+stages:
+- id: FunctionalTest
+  type: jenkins
+  name: Functional Test
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-functional-test"
+    master: intopsprd-jenkins
+    notifications:
+    - address: "{{ TeamDL }}"
+      level: stage
+      type: email
+      when:
+      - stage.failed
+    sendNotifications: true
+    parameters: {}
+partials: []
+modules: []
+

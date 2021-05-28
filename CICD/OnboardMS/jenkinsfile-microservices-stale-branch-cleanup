@@ -1,0 +1,89 @@
+def label = "build-${UUID.randomUUID().toString()}"
+podTemplate(
+    label: label,
+    name: label,
+    imagePullSecrets: ['prodregistry'],
+    containers: [
+        containerTemplate(
+            name: label,
+            image: 'wagdigital.azurecr.io/baseimg/wag-dotcom-build-zulu10-nodejs10-bionic:v2',
+            command: 'cat',
+            ttyEnabled: true,
+            alwaysPullImage: true
+        )
+    ],
+    volumes: [
+        hostPathVolume(mountPath: '/var/run/docker.sock', hostPath: '/var/run/docker.sock')
+    ]
+){
+    properties([
+        disableConcurrentBuilds()
+    ])
+    node(label) {
+        container(label) {
+            stage('Get Stale Branches') {
+                dir('branches') {
+					git branch: 'master', credentialsId: 'wag_git_creds', url: 'https://wagwiki.wba.com/stash/scm/digdev/wag-k8metrics-framework.git'
+                    sh '''
+						npm install
+						npm run get-repo-branches
+					'''
+					publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, keepAll: true, reportDir: './reports', reportFiles: 'repo-branch-details.html', reportName: 'Report - All Branches', reportTitles: 'Report - All Branches'])
+					publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, keepAll: true, reportDir: './reports', reportFiles: 'stale-branch-details.html', reportName: 'Report - Stale Branches', reportTitles: 'Report - Stale Branches'])
+					archiveArtifacts allowEmptyArchive: true, artifacts: 'reports/*.json', defaultExcludes: false, onlyIfSuccessful: true
+                }
+            }
+
+			stage('Archive & Delete Stale Branches') {
+				dir('branches') {
+					withCredentials([usernamePassword(credentialsId: 'wag_git_creds', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
+						sh '''
+							REPOS=$(jq -c '.' reports/stale-branch-details.json)
+							for row in $(echo "$REPOS" | jq -r '.[] | @base64'); do
+								_jq() {
+									echo ${row} | base64 --decode | jq -r ${1}
+								}
+								REPO_NAME=$(_jq '.RepoName')
+								echo "<<<<<<<<<<<<<<<<<<<<<<<<<< $REPO_NAME >>>>>>>>>>>>>>>>>>>>>>>>>>"
+								
+                                if [ "$REPO_NAME" = "wag-mobile-apnsrefillreminder" ] || [ "$REPO_NAME" = "wag-mobile-datamigrationbatch" ] || [ "$REPO_NAME" = "wag-mobile-loyaltymemberidapi" ] || [ "$REPO_NAME" = "wag-mobile-pushcampaignmetrics" ] || [ "$REPO_NAME" = "wag-mobile-googlefitreportbatch" ] || [ "$REPO_NAME" = "wag-mobile-androidpayreportbatch" ] || [ "$REPO_NAME" = "wag-mobile-processtransactionapi" ] || [ "$REPO_NAME" = "wag-mobile-rxnotificationlistener" ] || [ "$REPO_NAME" = "wag-mobile-applewalletonetimebatch" ] || [ "$REPO_NAME" = "wag-mobile-homescreenwidgetservice" ] || [ "$REPO_NAME" = "wag-mobile-pushnotificationlistener" ] || [ "$REPO_NAME" = "wag-mobile-pushnotificationframework" ] || [ "$REPO_NAME" = "wag-mobile-savedsearchpushnotification" ] || [ "$REPO_NAME" = "wag-mobile-eventpointsnotificationbatch" ] || [ "$REPO_NAME" = "wag-mobile-voicechannelemailreportbatch" ] || [ "$REPO_NAME" = "wag-mobile-androidpaytokenstatusupdatebatch" ];
+                                then
+									echo "--------------------- inside if ---------------------"
+									BRANCHES=$(_jq '.branches')
+									REPO_URL="http://${USERNAME}:${PASSWORD}@wagwiki.wba.com/stash/scm/ecomm/$REPO_NAME.git"
+									git clone $REPO_URL
+									cd $REPO_NAME
+									for row in $(echo "${BRANCHES}" | jq -r '.[] | @base64'); do
+										_jq() {
+											echo ${row} | base64 --decode | jq -r ${1}
+										}
+										BRANCH_NAME=$(_jq '.Name')
+									echo "---------------------------- Archiving $BRANCH_NAME ----------------------------"
+                                        git checkout $BRANCH_NAME
+                                        git tag archive/$BRANCH_NAME $BRANCH_NAME
+                                        git push origin --tags
+                                        echo "---------------------------- Deleting $BRANCH_NAME ----------------------------"
+                                        git push origin --delete $BRANCH_NAME	
+									done
+								fi
+								cd ..
+								rm -rf $REPO_NAME
+							done
+						'''
+					}
+				}
+			}
+
+            stage('Email') {
+                dir('branches') {
+                    env.ForEmailPlugin = env.WORKSPACE
+                    emailext mimeType: 'text/html', 
+                    body: '''${FILE, path="reports/stale-branch-details.html"}''',
+                    subject: "Repository Stale Branches Deleted #${env.BUILD_NUMBER}",
+                    to: 'digital-ms-devops@walgreens.com'
+                }
+            }
+        }
+    }
+}
+

@@ -1,0 +1,41 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: jenkins-ha
+  namespace: jenkins
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: jenkins-ha
+    spec:
+      initContainers:
+      - name: pv-init
+        image: busybox
+        imagePullPolicy: IfNotPresent
+        command: ["sh", "-c", "chown -R 1000:1000 /var/jenkins_home"]
+        volumeMounts:
+          - name: jenkins-pv-claim
+            mountPath: /var/jenkins_home
+      containers:
+      - name: jenkins-ha
+        image: jenkins/jenkins:lts
+        ports:
+        - name: http-port
+          containerPort: 8080
+        - name: jnlp-port
+          containerPort: 50000
+        volumeMounts:
+          - name: jenkins-pv-claim
+            mountPath: /var/jenkins_home
+#      volumes:
+#        - name: jenkins-home
+#          hostpath: 
+#          path: /usr/local/ecomm/data
+#          type: Directory
+      volumes:
+        - name: jenkins-pv-claim
+          persistentVolumeClaim:
+            claimName: jenkins-pv-claim
+

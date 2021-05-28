@@ -1,0 +1,77 @@
+GetUserInputs() {
+
+	while [[ -z "${CLUSTER_NAME}" ]]
+	do
+		echo -e "Enter ACS Cluster DNS prefix (Only first 9 characters will be used for Agent Pool name): \c"
+		read CLUSTER_NAME
+	done
+	CLUSTER_NAME=`echo ${CLUSTER_NAME} | tr -dc '[:alnum:]\n\r' | tr '[:upper:]' '[:lower:]'`
+
+
+	while [[ -z "${VNET_NAME}" ]]
+	do
+		echo -e "Enter Azure VNet name: \c"
+		read VNET_NAME
+	done
+
+
+	while [[ -z "${SUBNET_NAME}" ]]
+	do
+		echo -e "Enter Azure Subnet name: \c"
+		read SUBNET_NAME
+	done
+
+
+	while [[ -z "${STARTING_IP}" ]]
+	do
+		echo -e "Enter the Starting IP Address: \c"
+		read STARTING_IP
+	done
+	STARTING_IP=`echo ${STARTING_IP} | tr -dc '[0-9.]\n\r'`
+
+
+	while [[ -z "${SERVICE_PRINCIPAL}" ]]
+	do
+		echo -e "Enter the AD Service Principal Name: \c"
+		read SERVICE_PRINCIPAL
+	done
+
+
+	while [[ -z "${CLIENT_SECRET}" ]]
+	do
+		echo -e "Enter the AD Service Principal Client Secret for '${SERVICE_PRINCIPAL}': \c"
+		read -s CLIENT_SECRET
+	done
+	CLIENT_SECRET=`echo ${CLIENT_SECRET} | tr -dc '[a-zA-Z0-9-]\n\r'`
+	echo
+
+
+	while [[ -z "${ADMIN_ACCOUNT}" ]]
+	do
+		echo -e "Enter the ACS Cluster Admin user account name: \c"
+		read ADMIN_ACCOUNT
+	done
+	ADMIN_ACCOUNT=`echo ${ADMIN_ACCOUNT} | tr -dc '[:alnum:]\n\r' | tr '[:upper:]' '[:lower:]'`
+
+
+	while [[ -z "${HEPTIO_ARK_STORAGE_ACCOUNT_SAS_TOKEN}" ]]
+	do
+		echo -e "Enter the SAS token for '${HEPTIO_ARK_STORAGE_ACCOUNT}' storage account (for Heptio Ark): \c"
+		read HEPTIO_ARK_STORAGE_ACCOUNT_SAS_TOKEN
+		HEPTIO_ARK_STORAGE_ACCOUNT_SAS_TOKEN=${HEPTIO_ARK_STORAGE_ACCOUNT_SAS_TOKEN//&/\\\&}
+	done
+
+
+	if [ "${HEPTIO_ARK_STORAGE_ACCOUNT}" != "${CHEF_BOOTSTRAP_STORAGE_ACCOUNT}" ]; then
+		while [[ -z "${CHEF_BOOTSTRAP_STORAGE_ACCOUNT_SAS_TOKEN}" ]]
+		do
+			echo -e "Enter the SAS token for '${CHEF_BOOTSTRAP_STORAGE_ACCOUNT}' storage account (for Chef Bootstrapping): \c"
+			read CHEF_BOOTSTRAP_STORAGE_ACCOUNT_SAS_TOKEN
+			CHEF_BOOTSTRAP_STORAGE_ACCOUNT_SAS_TOKEN=${CHEF_BOOTSTRAP_STORAGE_ACCOUNT_SAS_TOKEN//&/\\\&}
+		done
+	else
+		export CHEF_BOOTSTRAP_STORAGE_ACCOUNT_SAS_TOKEN="${HEPTIO_ARK_STORAGE_ACCOUNT_SAS_TOKEN}"
+    fi
+
+	echo
+}

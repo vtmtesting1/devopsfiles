@@ -1,0 +1,85 @@
+/* (c) Walgreen Co. All rights reserved.*/
+node {
+    properties([
+        parameters([
+            string(defaultValue: '', description: 'Enter RepoName you want to build Template', name: 'RepoName'),
+            string(defaultValue: '', description: 'Enter MicroService you want to build Template', name: 'MicroserviceName'),
+            string(defaultValue: '', description: 'Enter Active Session of Spinnaker Template', name: 'ActiveSession'),
+            choice(choices: ['All', 'FunctionalTest', 'UIPerfTest', 'LoadTest'].join("\n"), description: 'Select test type', name: 'Pipeline')
+        ]),
+        [$class: 'BuildDiscarderProperty', strategy: [$class: 'LogRotator', numToKeepStr: '10']],
+        disableConcurrentBuilds()
+    ])
+    stage('Clone') {
+        dir('PipelineConfig')  {
+            git branch: 'configdevops', credentialsId: 'wag_git_creds', url: 'https://wagwiki.wba.com/stash/scm/ecomm/${RepoName}.git'
+        }
+        dir('roer-go') {
+            git branch: 'master', credentialsId: 'wag_git_creds', url: 'https://wagwiki.wba.com/stash/scm/ecomm/spinnaker-template.git'
+        }
+    }
+    stage('Functional Test Pipeline') {
+        try {
+            if (params.Pipeline == 'All' || params.Pipeline == 'FunctionalTest') {
+                sh 'echo ${BUILD_NUMBER}'
+                sh 'echo ${WORKSPACE}'
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                sh 'cp ${WORKSPACE}/PipelineConfig/config/spinnaker/develop-pipeline-config.yaml ${WORKSPACE}/PipelineConfig/config/spinnaker/functional-test-pipeline-config.yaml'
+                sh 'sed -i.bak \'s/BuildTemplateDevelopV1/\'FunctionalTestTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/functional-test-pipeline-config.yaml'
+                sh 'sed -i.bak "s/${MicroserviceName}-functional-test/${MicroserviceName}-deploy-vs/g" ${WORKSPACE}/PipelineConfig/config/spinnaker/functional-test-pipeline-config.yaml'
+                sh '''cd ${WORKSPACE}/roer-go/roer-0.11.3/
+                SPINNAKER_API=http://dgtlspinnaker-gate-acs.walgreens.com:8084 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run cmd/roer/main.go --as ${ActiveSession} pipeline save ${WORKSPACE}/PipelineConfig/config/spinnaker/functional-test-pipeline-config.yaml'''
+            } else {
+                echo '****** Skipped Functional Test Pipeline Creation ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('UI Perf Test Pipeline') {
+        try {
+            if (params.Pipeline == 'All' || params.Pipeline == 'UIPerfTest') {
+                sh 'echo ${BUILD_NUMBER}'
+                sh 'echo ${WORKSPACE}'
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                sh 'cp ${WORKSPACE}/PipelineConfig/config/spinnaker/develop-pipeline-config.yaml ${WORKSPACE}/PipelineConfig/config/spinnaker/ui-perf-test-pipeline-config.yaml'
+                sh 'sed -i.bak \'s/BuildTemplateDevelopV1/\'UIPerfTestTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/ui-perf-test-pipeline-config.yaml'
+                sh 'sed -i.bak "s/${MicroserviceName}-ui-perf-test/${MicroserviceName}-deploy-vs/g" ${WORKSPACE}/PipelineConfig/config/spinnaker/ui-perf-test-pipeline-config.yaml'
+                sh '''cd ${WORKSPACE}/roer-go/roer-0.11.3/
+                SPINNAKER_API=http://dgtlspinnaker-gate-acs.walgreens.com:8084 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run cmd/roer/main.go --as ${ActiveSession} pipeline save ${WORKSPACE}/PipelineConfig/config/spinnaker/ui-perf-test-pipeline-config.yaml'''
+            } else {
+                echo '****** Skipped UI Perf Test Pipeline Creation ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Load Test Pipeline') {
+        try {
+            if (params.Pipeline == 'All' || params.Pipeline == 'LoadTest') {
+                sh 'echo ${BUILD_NUMBER}'
+                sh 'echo ${WORKSPACE}'
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                sh 'cp ${WORKSPACE}/PipelineConfig/config/spinnaker/develop-pipeline-config.yaml ${WORKSPACE}/PipelineConfig/config/spinnaker/load-test-pipeline-config.yaml'
+                sh 'sed -i.bak \'s/BuildTemplateDevelopV1/\'LoadTestTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/load-test-pipeline-config.yaml'
+                sh 'sed -i.bak "s/${MicroserviceName}-load-test/${MicroserviceName}-deploy-vs/g" ${WORKSPACE}/PipelineConfig/config/spinnaker/load-test-pipeline-config.yaml'
+                sh '''cd ${WORKSPACE}/roer-go/roer-0.11.3/
+                SPINNAKER_API=http://dgtlspinnaker-gate-acs.walgreens.com:8084 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run cmd/roer/main.go --as ${ActiveSession} pipeline save ${WORKSPACE}/PipelineConfig/config/spinnaker/load-test-pipeline-config.yaml'''
+            } else {
+                echo '****** Skipped UI Perf Test Pipeline Creation ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+}
+

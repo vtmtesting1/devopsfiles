@@ -1,0 +1,19 @@
+GenerateSSHKeys() {
+	if [ -f ${CLUSTER_NAME}-ssh-key.pub ]; then
+		_TIMESTAMP=`date +%Y_%m_%d-%H-%M-%S`
+		echo -e "\nWARNING: ${CLUSTER_NAME}-ssh-key.pub already exists. Renaming it to ${CLUSTER_NAME}-ssh-key.pub.${_TIMESTAMP}"
+		mv ${CLUSTER_NAME}-ssh-key.pub ${CLUSTER_NAME}-ssh-key.pub.${_TIMESTAMP}
+	fi
+
+	if [ -f ${HOME}/.ssh/${CLUSTER_NAME}-ssh-key ]; then
+		_TIMESTAMP=`date +%Y_%m_%d-%H-%M-%S`
+		echo -e "\nWARNING: ${HOME}/.ssh/${CLUSTER_NAME}-ssh-key already exists. Renaming it to ${HOME}/.ssh/${CLUSTER_NAME}-ssh-key.${_TIMESTAMP}"
+		mv ${HOME}/.ssh/${CLUSTER_NAME}-ssh-key ${HOME}/.ssh/${CLUSTER_NAME}-ssh-key.${_TIMESTAMP}
+	fi
+
+	ssh-keygen -f ${CLUSTER_NAME}-ssh-key -q -N ""
+	mkdir -p ${HOME}/.ssh
+	chmod 700 ${HOME}/.ssh
+	mv ${CLUSTER_NAME}-ssh-key ${HOME}/.ssh
+	chmod 600 ${HOME}/.ssh/${CLUSTER_NAME}-ssh-key
+}

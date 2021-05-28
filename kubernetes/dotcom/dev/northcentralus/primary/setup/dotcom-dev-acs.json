@@ -1,0 +1,165 @@
+{
+  "apiVersion": "vlabs",
+  "properties": {
+    "orchestratorProfile": {
+      "orchestratorType": "Kubernetes",
+      "orchestratorRelease": "1.13",
+      "orchestratorVersion": "1.13.4",
+      "kubernetesConfig": {
+        "enableRbac": true,
+        "enableSecureKubelet": true,
+        "enableAggregatedAPIs": true,
+        "networkPolicy": "calico",
+        "networkPlugin": "kubenet",
+        "clusterSubnet": "10.123.0.0/17",
+        "serviceCidr": "10.123.128.0/17",
+        "dnsServiceIP": "10.123.128.254",
+        "dockerBridgeSubnet": "192.168.21.5/24",
+        "etcdDiskSizeGB": "128",
+        "privateCluster": {
+          "enabled": true
+        },
+        "kubeletConfig": {
+          "--non-masquerade-cidr": "10.123.0.0/17",
+          "--cluster-domain": "k8s.walgreens.com",
+          "--feature-gates": "PodPriority=true"
+        },
+        "apiServerConfig": {
+          "--enable-admission-plugins": "NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota"
+        },
+        "useInstanceMetadata": false,
+        "enableEncryptionWithExternalKms": true,
+        "cloudProviderRateLimit": false,
+        "cloudProviderRateLimitBucket": 0,
+        "cloudProviderRateLimitQPS": 0,
+        "addons": [
+          {
+            "name": "blobfuse-flexvolume",
+            "enabled" : false
+          },
+          {
+            "name": "smb-flexvolume",
+            "enabled" : false
+          },
+          {
+            "name": "keyvault-flexvolume",
+            "enabled" : false
+          },
+          {
+            "name": "nvidia-device-plugin",
+            "enabled" : false
+          },
+          {
+            "name": "azure-cni-networkmonitor",
+            "enabled" : false
+          },
+          {
+           "name": "ip-masq-agent",
+           "enabled" : false
+          }
+        ]
+      }
+    },
+    "masterProfile": {
+      "count": 3,
+      "dnsPrefix": "dcomdev",
+      "distro": "ubuntu",
+      "vmSize": "Standard_D4s_v3",
+      "vnetSubnetId": "/subscriptions/f865366b-adad-4e1d-855c-fce136ce95e2/resourceGroups/digital_nsen_nprod_network_ncus_rg/providers/Microsoft.Network/virtualNetworks/digital-northcentralus-nonsen-nonprod-vnet-01/subnets/digital-dev-acs01",
+      "availabilityProfile": "AvailabilitySet",
+      "firstConsecutiveStaticIP": "10.217.128.25",
+      "OSDiskSizeGB": 128,
+      "extensions": [
+        {
+          "name": "bootstrap",
+          "singleOrAll": "All"
+        }
+     ]
+    },
+    "agentPoolProfiles": [
+      {
+        "name": "dcomdevn011",
+        "count": 5,
+        "distro": "ubuntu",
+        "vmSize": "Standard_D8s_v3",
+        "vnetSubnetId": "/subscriptions/f865366b-adad-4e1d-855c-fce136ce95e2/resourceGroups/digital_nsen_nprod_network_ncus_rg/providers/Microsoft.Network/virtualNetworks/digital-northcentralus-nonsen-nonprod-vnet-01/subnets/digital-dev-acs01",
+        "availabilityProfile": "AvailabilitySet",
+        "storageProfile" : "ManagedDisks",
+        "diskSizesGB": [64],
+        "OSDiskSizeGB": 128,
+        "acceleratedNetworkingEnabled": true,
+        "preProvisionExtension": {
+            "name": "prepare_vm_disks",
+            "singleOrAll": "All"
+        },
+        "extensions": [
+          {
+            "name": "bootstrap",
+            "singleOrAll": "All"
+          }
+       ]
+      },
+      {
+        "name": "dcomdevn012",
+        "count": 2,
+        "distro": "ubuntu",
+        "vmSize": "Standard_D16s_v3",
+        "vnetSubnetId": "/subscriptions/f865366b-adad-4e1d-855c-fce136ce95e2/resourceGroups/digital_nsen_nprod_network_ncus_rg/providers/Microsoft.Network/virtualNetworks/digital-northcentralus-nonsen-nonprod-vnet-01/subnets/digital-dev-acs01",
+        "availabilityProfile": "AvailabilitySet",
+        "storageProfile" : "ManagedDisks",
+        "diskSizesGB": [64],
+        "OSDiskSizeGB": 128,
+        "acceleratedNetworkingEnabled": true,
+        "preProvisionExtension": {
+            "name": "prepare_vm_disks",
+            "singleOrAll": "All"
+        },
+        "extensions": [
+          {
+            "name": "bootstrap",
+            "singleOrAll": "All"
+          }
+       ]
+      }
+    ],
+    "extensionProfiles": [
+      {
+          "name": "prepare_vm_disks",
+          "version": "v1",
+          "rootURL": "https://wagdotcomdevacs01.blob.core.windows.net/",
+          "script": "prepare_vm_disks.sh",
+          "urlQuery": "sv=2018-03-28&ss=b&srt=sco&sp=r&se=2019-08-30T23:36:19Z&st=2019-03-27T15:36:19Z&spr=https&sig=aSQJGqbaSQcEU%2B%2Bbk20jMGFtulLGbRERr7A0UezaOMU%3D"
+      },
+      {
+          "name": "bootstrap",
+          "version": "v5",
+          "extensionParameters": " -r profile_wag_infrastructure_baseline,profile_wag_acs_k8s_infra_test,profile_wag_digital_dotcomqa_infra -t Azure,North-Central-US,EIS,EISLinux,Kubernetes,ACS,Digital,DotCom,Running,Instance-DotComDevCS01,Patch,PatchReboot,Reboot -e test ",
+          "rootURL": "https://wagchefcsencus.blob.core.windows.net/",
+          "script": "bootstrap.sh",
+          "urlQuery": "sv=2017-11-09&ss=b&srt=sco&sp=r&se=2020-01-01T06:00:00Z&st=2018-11-07T20:30:21Z&spr=https&sig=IuqZQKpYkyE9Un7KwWN9R2ZEtE3mrFl8w9imGrY72dc%3D"
+      }
+    ],
+    "linuxProfile": {
+      "adminUsername": "deadmin",
+      "ssh": {
+        "publicKeys": [
+          {
+            "keyData": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDTXzRYDSvSxOpenm9TxTTkPq3+cAbpBqqFfS2Q6E90MdrWhybH9J8EKhYmJ6lp25BZiqRVsQ2hgHXzajmvMfn4ZTy0mQ9bI+OvDx46kq0Jy4O2vt6xHOTihGPf6Yr7UJLJFVC83hfJnA7ZMJk3AAKQxszZ38tER1357z2HFQfVKHSrjobmTGntjM/1cJS1znrYfNucq6IRGpT04Dz88tK7ZL95f2C0+H/nkHi2GUgQiVLrP88V8fljpXfk39xubw8NhFwZwlzXKd4RtSMPHanZbSf5HezHo+Z0fcA5OL00vQ7z6J6My3e9bAktClSNedAFmhxcPv8hwwyEMYfcoUej"
+          }
+        ]
+      }
+    },
+    "aadProfile": {
+      "clientAppID": "a2b2d898-ce62-4fe6-a680-82121233fad1",
+      "serverAppID": "31c5379f-bd11-46ba-9961-9ecc5d088556",
+      "tenantID": "92cb778e-8ba7-4f34-a011-4ba6e7366996",
+      "adminGroupID": "c32a7bc1-2cc2-4d65-bfe5-681a65af95f5"
+    },
+    "servicePrincipalProfile": {
+      "clientId": "f8bfa4ae-fe58-46e4-b644-6463ff937260",
+      "secret": "d046bbb6-ab69-4a11-9f2b-21cea83098db",
+      "objectId": "6859b194-7c2d-4e05-9af7-3e717ab1eb31"
+    }
+  }
+}
+

@@ -1,0 +1,76 @@
+InstallTwistlock() {
+	# Twistlock Console is centrally managed. So only Defenders must be installed on ACS clusters
+
+	SyncRepo
+
+	echo -e "\nCleaning up Twistlock Defenders..\n"
+
+	for YAML in $(ls ../twistlock/*.y*ml | sort -r)
+	do
+		echo $YAML
+		${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete -f ${YAML}
+	done
+
+	echo -e "\nSleeping for 30 seconds..\n"
+	sleep 30
+
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" create -f ../twistlock/00-acr-secret.yaml
+
+	# If there are multiple IP addresses for Console, this will pick the last one in the
+	# host command
+
+	_TWISTLOCK_CONSOLE_IP=$(host ${TWISTLOCK_CONSOLE_FQDN} | tail -1 | awk '{ print $4 }')
+	if [ "${_TWISTLOCK_CONSOLE_IP}" == "found:" ]; then
+		echo -e "\nWARNING: Unable to resolve the IP of '${TWISTLOCK_CONSOLE_FQDN}' (Check VPN). Please enter manually.."
+		_TWISTLOCK_CONSOLE_IP=""
+		while [[ -z "${_TWISTLOCK_CONSOLE_IP}" ]]
+		do
+			echo -e "Enter Twislock Console IP: \c"
+			read _TWISTLOCK_CONSOLE_IP
+		done
+	fi
+
+	############################################################
+	# It looks like the following snippet is not needed anymore
+	############################################################
+
+	# echo -e "\nTwistlock URL is 'https://${TWISTLOCK_CONSOLE_FQDN}:8083'. Please login to Twistlock Console and :"
+	# echo -e "\t1. Navigate to 'Manage' > 'Defenders' section and click on 'Deploy' tab"
+	# echo -e "\t2. Click on the 'Add row' button at the bottom of the screen and add ${_TWISTLOCK_CONSOLE_IP}"
+	# echo -e "\t3. Choose '${_TWISTLOCK_CONSOLE_IP}' under 'Choose the name that clients and Defenders use to access this Console'"
+	# echo -e "\t4. Return back to this installation procedure to continue."
+
+	# echo -e "\nPress ENTER to open the Twistlock Console now..."
+	# read _USER_BREAK
+	# open "https://${TWISTLOCK_CONSOLE_FQDN}:8083"
+
+	_TWISTLOCK_ADMIN_USER=""
+	_TWISTLOCK_ADMIN_PASSWORD=""
+
+	while [[ -z "${_TWISTLOCK_ADMIN_USER}" ]]
+	do
+		echo -e "\nEnter Twislock Admin User name: \c"
+		read _TWISTLOCK_ADMIN_USER
+	done
+	
+	while [[ -z "${_TWISTLOCK_ADMIN_PASSWORD}" ]]
+	do
+		echo -e "Enter Twislock Admin User password: \c"
+		read -s _TWISTLOCK_ADMIN_PASSWORD
+	done
+
+	echo -e "\n\nDownloading the Twistlock Defender YAML through twistcli command.."
+
+	if [ "$(uname)" == "Darwin" ]; then
+		../twistlock/18.11.96/osx/twistcli defender export kubernetes --address https://${TWISTLOCK_CONSOLE_FQDN}:8083 --cluster-address ${_TWISTLOCK_CONSOLE_IP} --image-name ${AZURE_CONTAINER_REGISTRY}/digital/dotcom/tools/twistlock_defender:18.11.96 --image-pull-secrets ${AZURE_CONTAINER_REGISTRY_SECRET} --namespace twistlock --privileged --output ../twistlock/02-twistlock-defenders.yaml --user ${_TWISTLOCK_ADMIN_USER} --password ${_TWISTLOCK_ADMIN_PASSWORD}
+	else
+		../twistlock/18.11.96/linux/twistcli defender export kubernetes --address https://${TWISTLOCK_CONSOLE_FQDN}:8083 --cluster-address ${_TWISTLOCK_CONSOLE_IP} --image-name ${AZURE_CONTAINER_REGISTRY}/digital/dotcom/tools/twistlock_defender:18.11.96 --image-pull-secrets ${AZURE_CONTAINER_REGISTRY_SECRET} --namespace twistlock --privileged --output ../twistlock/02-twistlock-defenders.yaml --user ${_TWISTLOCK_ADMIN_USER} --password ${_TWISTLOCK_ADMIN_PASSWORD}
+    fi
+
+	git add ../twistlock/02-twistlock-defenders.yaml*
+	git commit -m "`basename $0` - Twistlock Defender YAML file updated from Twistlock Console ${TWISTLOCK_CONSOLE_FQDN}"
+	git push
+
+	echo -e "\nInstalling Twistlock Defenders..\n"
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" create -f ../twistlock/02-twistlock-defenders.yaml
+}

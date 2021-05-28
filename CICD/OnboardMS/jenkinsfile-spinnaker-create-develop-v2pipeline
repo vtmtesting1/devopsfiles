@@ -1,0 +1,114 @@
+/* (c) Walgreen Co. All rights reserved.*/
+node {
+    properties([
+        parameters([
+            string(defaultValue: '', description: 'Enter RepoName you want to build Template', name: 'RepoName'),
+            string(defaultValue: '', description: 'Enter MicroService you want to build Template', name: 'MicroserviceName'),
+            choice(choices: ['All', 'Deploy', 'WWW3Deploy', 'ProdDeploy', 'ProdEUDeploy'].join("\n"), description: 'Select All to create build and deploy pipelines, Build for build only, Deploy for deploy only', name: 'Pipeline'),
+            choice(choices: ['APIUI', 'API', 'Prerender'].join("\n"), description: 'Select type of template', name: 'TemplateType')
+        ]),
+        [$class: 'BuildDiscarderProperty', strategy: [$class: 'LogRotator', numToKeepStr: '10']],
+        disableConcurrentBuilds()
+    ])
+    stage('Clone') {
+        sh 'rm -rf PipelineConfig'
+        dir('PipelineConfig')  {
+            git branch: 'configdevops', credentialsId: 'wag_git_creds', url: 'https://wagwiki.wba.com/stash/scm/ecomm/${RepoName}.git'
+        }
+    }
+    stage('QA Deploy Pipeline') {
+        try {
+            if (params.Pipeline == 'All' || params.Pipeline == 'Deploy') {
+                sh 'echo ${BUILD_NUMBER}'
+                sh 'echo ${WORKSPACE}'
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/spin/bin'
+                sh 'cp ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-v2.json ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+                if (params.TemplateType == 'APIUI') {
+                    sh 'sed -i.bak \'s/APIUIFeatureCDTemplateV2/\'APIUIDevelopCDTemplateV2\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+                }
+                if (params.TemplateType == 'API') {
+                    sh 'sed -i.bak \'s/APIUIFeatureCDTemplateV2/\'APIDevelopCDTemplateV2\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+                }
+                sh 'sed -i.bak "s/${MicroserviceName}-feature-deploy-v2/${MicroserviceName}-deploy-v2/g" ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+                sh '/var/jenkins_home/spin/bin/spin -k --config /var/jenkins_home/spin/config --gate-endpoint https://dgtlspinnaker-gate-acs.walgreens.com:8085 pipeline save -f ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+            } else {
+                echo '****** Skipped QA Deploy Pipeline Creation ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('WWW3 Deploy Pipeline') {
+        try {
+            if (params.Pipeline == 'All' || params.Pipeline == 'WWW3Deploy') {
+                sh 'echo ${BUILD_NUMBER}'
+                sh 'echo ${WORKSPACE}'
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/spin/bin'
+                sh 'cp ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-v2.json ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+
+                sh 'sed -i.bak \'s/APIUIFeatureCDTemplateV2/\'WWW3CDTemplateV2\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+                
+                sh 'sed -i.bak "s/${MicroserviceName}-feature-deploy-v2/${MicroserviceName}-www3-deploy-v2/g" ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+                sh '/var/jenkins_home/spin/bin/spin -k --config /var/jenkins_home/spin/config --gate-endpoint https://dgtlspinnaker-gate-acs.walgreens.com:8085 pipeline save -f ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+
+            } else {
+                echo '****** Skipped WWW3 Deploy Pipeline Creation ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Prod Deploy Pipeline') {
+        try {
+            if (params.Pipeline == 'All' || params.Pipeline == 'ProdDeploy') {
+                sh 'echo ${BUILD_NUMBER}'
+                sh 'echo ${WORKSPACE}'
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/spin/bin'
+                sh 'cp ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-v2.json ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+                
+                if (params.TemplateType == 'Prerender') {
+                    sh 'sed -i.bak \'s/PrerenderDevelopCDTemplateV2/\'PrerenderProdCDTemplateV2\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+                } else {
+                    sh 'sed -i.bak \'s/APIUIFeatureCDTemplateV2/\'ProdCDTemplateV2\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+                }
+                
+                sh 'sed -i.bak "s/${MicroserviceName}-feature-deploy-v2/${MicroserviceName}-prod-deploy-v2/g" ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+                sh '/var/jenkins_home/spin/bin/spin -k --config /var/jenkins_home/spin/config --gate-endpoint https://dgtlspinnaker-gate-acs.walgreens.com:8085 pipeline save -f ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+
+            } else {
+                echo '****** Skipped Prod Deploy Pipeline Creation ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Prod EU Deploy Pipeline') {
+        try {
+            if (params.Pipeline == 'All' || params.Pipeline == 'ProdEUDeploy') {
+                sh 'echo ${BUILD_NUMBER}'
+                sh 'echo ${WORKSPACE}'
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/spin/bin'
+                sh 'cp ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-v2.json ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+                
+                sh 'sed -i.bak \'s/APIUIFeatureCDTemplateV2/\'DRCDTemplateV2\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+                
+                sh 'sed -i.bak "s/${MicroserviceName}-feature-deploy-v2/${MicroserviceName}-prod-eu-deploy-v2/g" ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+                sh '/var/jenkins_home/spin/bin/spin -k --config /var/jenkins_home/spin/config --gate-endpoint https://dgtlspinnaker-gate-acs.walgreens.com:8085 pipeline save -f ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy-v2.json'
+                
+            } else {
+                echo '****** Skipped Prod EU Deploy Pipeline Creation ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+}
+

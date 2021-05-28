@@ -1,0 +1,5 @@
+ResetWebProxy() {
+	export HTTP_PROXY=${_HTTP_PROXY}
+	export HTTPS_PROXY=${_HTTPS_PROXY}
+	export NO_PROXY=${_NO_PROXY}
+}

@@ -1,0 +1,234 @@
+{
+  	"schema":"v2",
+  	"variables":[
+      	{
+          	"type":"string",
+          	"description":"Name of the Microservice",
+          	"name":"microserviceName"
+      	},
+      	{
+          	"type":"string",
+          	"description":"Microservice Repository Name",
+          	"name":"microserviceRepoName"
+      	},
+      	{
+          	"type":"string",
+          	"description":"Team DL",
+          	"name":"teamDL"
+      	},
+      	{
+          	"type":"string",
+          	"description":"k8s Namespace for deployment",
+          	"name":"nameSpace",
+          	"defaultValue":"dotcom-app"
+      	}
+  	],
+  	"id":"PrerenderDevelopCDTemplateV2",
+  	"protect":false,
+  	"metadata":{
+      	"name":"PrerenderDevelopCDTemplateV2",
+      	"description":"Prerender Continuous Delivery Pipeline Template V2 - Develop Branch",
+      	"owner":"digital-ms-devops@walgreens.com",
+      	"scopes":[
+          	"global"
+      	]
+  	},
+  	"pipeline":{
+      	"description":"QA Deploy Pipeline for ${ templateVariables.microserviceName }",
+      	"keepWaitingPipelines":false,
+      	"lastModifiedBy":"anonymous",
+      	"updateTs":"0",
+      	"limitConcurrent":true,
+      	"triggers":[
+          	{
+              	"account":"prodregistry",
+              	"enabled":true,
+              	"expectedArtifactIds":[
+                  	"microservice-docker-image",
+                  	"microservice-helm-chart",
+                  	"microservice-helm-values"
+              	],
+              	"organization":"digital/dotcom",
+              	"registry":"wagdigital.azurecr.io",
+              	"repository":"digital/dotcom/${ templateVariables.microserviceName }",
+              	"runAsUser":"spinnaker-svc-account",
+              	"type":"docker"
+          	}
+      	],
+      	"expectedArtifacts":[
+          	{
+              	"defaultArtifact":{
+                  	"customKind":true,
+                  	"id":"microservice-docker-image-default-artifact"
+              	},
+              	"displayName":"Dockerimage",
+              	"id":"microservice-docker-image",
+              	"matchArtifact":{
+                 	 "artifactAccount":"docker-registry",
+                  	"id":"microservice-docker-image-artifact",
+                  	"name":"wagdigital.azurecr.io/digital/dotcom/${ templateVariables.microserviceName }",
+                  	"type":"docker/image"
+              	},
+              	"useDefaultArtifact":false,
+              	"usePriorArtifact":false
+          	},
+          	{
+              	"defaultArtifact":{
+                  	"artifactAccount":"bitbucket",
+                  	"id":"microservice-helm-chart-default-artifact",
+                  	"name":"charts/dotcom-prod-0.1.0.tgz",
+                  	"reference":"https://wagwiki.wba.com/stash/rest/api/1.0/projects/ECOMM/repos/dotcom-helm-chart/raw/charts/dotcom-prod-0.1.0.tgz?at=refs%2Fheads%2Fmaster",
+                  	"type":"bitbucket/file"
+              	},
+              	"displayName":"helm-chart",
+              	"id":"microservice-helm-chart",
+              	"matchArtifact":{
+                  	"artifactAccount":"bitbucket",
+                  	"id":"microservice-helm-chart-artifact",
+                  	"name":"charts/dotcom-prod-0.1.0.tgz",
+                  	"type":"bitbucket/file"
+              	},
+              	"useDefaultArtifact":true,
+              	"usePriorArtifact":false
+          	},
+          	{
+              	"defaultArtifact":{
+                  	"artifactAccount":"bitbucket",
+                  	"id":"microservice-helm-value-default-artifact",
+                  	"name":"config/helm/qa.yaml",
+                  	"reference":"https://wagwiki.wba.com/stash/rest/api/1.0/projects/ECOMM/repos/${ templateVariables.microserviceRepoName }/raw/config/helm/qa.yaml?at=refs%2Fheads%2Fconfigdevops",
+                  	"type":"bitbucket/file"
+              	},
+              	"displayName":"helm-values",
+              	"id":"microservice-helm-values",
+              	"matchArtifact":{
+                  	"artifactAccount":"bitbucket",
+                  	"id":"microservice-helm-value-artifact",
+                  	"name":"config/helm/qa.yaml",
+                  	"type":"bitbucket/file"
+              	},
+              	"useDefaultArtifact":true,
+              	"usePriorArtifact":false
+          	}
+      	],
+      	"stages":[
+          	{
+              	"name":"Bake (Manifest)",
+              	"type":"bakeManifest",
+              	"templateRenderer":"HELM2",
+              	"namespace":"${ templateVariables.nameSpace }",
+              	"outputName":"${ templateVariables.microserviceName }",
+              	"expectedArtifacts":[
+                  	{
+                      	"defaultArtifact":{
+                          	"customKind":true,
+                          	"id":"microservice-helm-artifact-default"
+                      	},
+                      	"displayName":"helm-artifact",
+                      	"id":"microservice-helm-artifact",
+                      	"matchArtifact":{
+                          	"artifactAccount":"embedded-artifact",
+                          	"id":"microservice-helm-embedded-artifact",
+                          	"name":"helm-artifact",
+                          	"type":"embedded/base64"
+                      	},
+                      	"useDefaultArtifact":false,
+                      	"usePriorArtifact":false
+                  	}
+              	],
+              	"inputArtifacts":[
+                  	{
+                      	"account":"bitbucket",
+                      	"id":"microservice-helm-chart"
+                  	},
+                  	{
+                      	"account":"bitbucket",
+                      	"id":"microservice-helm-values"
+                  	}
+              	],
+              	"overrides":{
+                  	"image.version":"${trigger['tag']}"
+              	},
+              	"refId":"1"
+          	},
+          	{
+              	"name":"Deploy to QA",
+              	"type":"deployManifest",
+              	"account":"dcomqa-v2",
+              	"cloudProvider":"kubernetes",
+              	"namespaceOverride":"",
+              	"manifestArtifactId":"microservice-helm-artifact",
+              	"moniker":{
+                  	"app":"${ templateVariables.microserviceName }"
+              	},
+              	"refId":"2",
+              	"requiredArtifacts":[
+
+              	],
+              	"requisiteStageRefIds":[
+                  	"1"
+              	],
+              	"skipExpressionEvaluation":true,
+              	"source":"artifact",
+              	"trafficManagement":{
+                  	"enabled":false,
+                  	"options":{
+                      	"enableTraffic":false
+                  	}
+              	}
+          	},
+          	{
+              	"name":"Manual Judgment",
+              	"type":"manualJudgment",
+              	"failPipeline":true,
+              	"refId":"3",
+              	"instructions":"Proceed Build #${trigger['tag']} to Prod?",
+              	"judgmentInputs":[
+
+				],
+              	"propagateAuthenticationContext":false,
+              	"notifications":[
+                  	{
+                      	"address":"${ templateVariables.teamDL }",
+                      	"level":"stage",
+                      	"type":"email",
+                      	"when":[
+                          	"manualJudgment"
+                      	]
+                  	}
+              	],
+              	"sendNotifications":false,
+              	"requisiteStageRefIds":[
+                  	"2"
+              	]
+          	},
+          	{
+              	"name":"Promote to Prod",
+              	"type":"jenkins",
+              	"master":"intopsprd-jenkins",
+              	"job":"${ templateVariables.microserviceName }/job/${ templateVariables.microserviceName }-promote-to-prod",
+              	"parameters":{
+                  	"buildnumber":"${trigger['tag']}"
+              	},
+              	"continuePipeline":false,
+              	"failPipeline":true,
+              	"refId":"4",
+              	"notifications":[
+                  	{
+                      	"address":"${ templateVariables.teamDL }",
+                      	"level":"stage",
+                      	"type":"email",
+                      	"when":[
+                          	"stage.failed"
+                      	]
+                  	}
+              	],
+              	"sendNotifications":false,
+              	"requisiteStageRefIds":[
+                  	"3"
+              	]
+          	}
+      	]
+  	}
+}
+

@@ -1,0 +1,369 @@
+def label = "qa-pipeline-${UUID.randomUUID().toString()}"
+podTemplate(
+    label: label,
+    name: label,
+    imagePullSecrets: ['prodregistry'],
+    containers: [
+        containerTemplate(
+            name: label,
+            image: 'wagdigital.azurecr.io/baseimg/wag-dotcom-build-zulu10-nodejs10-bionic:v2',
+            command: 'cat',
+            ttyEnabled: true,
+            alwaysPullImage: true
+        )
+    ],
+    volumes: [
+        hostPathVolume(mountPath: '/var/run/docker.sock', hostPath: '/var/run/docker.sock'),
+        secretVolume(mountPath: '/home/jenkins/secrets', secretName: 'spinnaker-secret')
+    ]
+){
+    properties([
+        [$class: 'RebuildSettings', autoRebuild: false, rebuildDisabled: false],
+        pipelineTriggers([cron('''TZ=US/Central
+H 8 * * *
+H 16 * * *
+H 23 * * *''')]),
+        disableConcurrentBuilds()
+    ])
+    node(label) {
+        container(label) {
+            /*if (params.DueDate == '') {
+                currentBuild.result = "ABORTED"
+                error "...............Due date is empty..............."
+            }*/
+            /*if (params.ActiveSession == '') {
+                currentBuild.result = "ABORTED"
+                error "...............Spinnaker active session is empty..............."
+            }*/
+            def spinnakerGateHost = "https://dgtlspinnaker-gate-acs.walgreens.com:8085"
+            // def activeSession = ""
+            stage('Get Microservices') {
+                dir('pipeline') {
+                    // def ticketStatus = '+and+status=Open'
+                    git branch: 'master', credentialsId: 'wag_git_creds', url: 'https://wagwiki.wba.com/stash/scm/digdev/scripts.git'
+                   /* def ticketStatus = ''
+                    if (params.Rebuild == true) {
+                        ticketStatus = '+and+status=RE-BUILD'
+                    }
+                    def getMicroservicesAPIURL = "https://ecomjira.walgreens.com/rest/api/latest/search?jql=type=Deployment+and+Infra=ACS+AND+duedate=${params.DueDate}${ticketStatus}+AND+status+not+in+(Cancelled)&fields=customfield_16410&maxResults=200"
+                    sh "curl -k -u siterelease-jirabot:Jir@b0t -H 'Content-Type: application/json' -X GET -# -o apps-to-build.json '${getMicroservicesAPIURL}'"
+                    sh '''#!/bin/bash +x
+                        TOTAL=`cat apps-to-build.json | jq '.total'`
+						echo $TOTAL > total.txt
+                        jq -r '.issues[].fields.customfield_16410[0].value' apps-to-build.json > microservices-random.txt
+                        tr '[:upper:]' '[:lower:]' < microservices-random.txt > microservices-no-sort.txt
+                        sort microservices-no-sort.txt > microservices.txt
+                        jq -r '.issues[].key' apps-to-build.json > tickets.txt
+                    '''
+                    def microservices = readFile 'microservices.txt'
+                    def microservicesTotal = readFile 'total.txt'
+                    def tickets = readFile 'tickets.txt'
+					microservicesTotal = microservicesTotal.replaceAll("\\s","")
+					println "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< ${microservicesTotal} Microservices >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+                    println "${microservices}"
+                    println "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Tickets >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+                    println "${tickets}" */
+                }
+            }
+            /* stage ('Get Spinnaker Session') {
+                dir('wag-k8metrics-framework') {
+                    git branch: 'master', credentialsId: 'wag_git_creds', url: 'https://wagwiki.wba.com/stash/scm/digdev/wag-k8metrics-framework.git'
+                    sh "npm install"
+                    withCredentials([usernamePassword(credentialsId: 'wag_spinnaker_cred', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
+                        sh 'USERNAME=$USERNAME PASSWORD=$PASSWORD npm run get-spinnaker-session'
+                    }
+                    activeSession = readFile 'reports/spinnaker-active-session.txt'
+                }
+            } */
+            /*stage ('Create Dashboard') {
+                // if (params.Pipeline == 'Build') {
+                    dir('wag-k8metrics-framework') {
+                        git branch: 'master', credentialsId: 'wag_git_creds', url: 'https://wagwiki.wba.com/stash/scm/digdev/wag-k8metrics-framework.git'
+                        sh "npm install"
+                        // sh "echo ${params.ActiveSession} > reports/spinnaker-active-session.txt"
+                        sh '''
+                            cp ../pipeline/microservices-vaccination.txt ./reports/apps-to-build.json
+                            npm run qa-deployment-dashboard
+                        '''
+                        publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: './reports', reportFiles: 'qa-build-status.html', reportName: 'QA Build & Deployment Status', reportTitles: 'QA Build & Deployment Status'])
+                    }
+                // }
+            }*/
+            stage ('Trigger Build Pipelines') {
+                // if (params.Pipeline == 'Build') {
+                    dir('pipeline') {
+                        try {
+                            def microservices = readFile 'microservices-vaccination.txt'
+                            microservices.split('\n').each { microservice ->
+                                microservice = microservice.toLowerCase().trim()
+								println "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Microservice : ${microservice} >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+                                sh "echo ${microservice}-build > build_pipeline_name.txt"
+								sh "echo ${microservice}-deploy > deploy_pipeline_name.txt"
+                                sh "echo ${microservice}-deploy-v2 > deploy_v2_pipeline_name.txt"
+
+                                /*
+                                *Check if application exists in Spinnaker
+                                */
+                                def getApplicationAPIURL = "${spinnakerGateHost}/applications/${microservice}"
+                                sh "curl -X GET -H 'Content-Type: application/json' --cert '/home/jenkins/secrets/client.crt' --key '/home/jenkins/secrets/client_unenc.key' -k -o app.json -# ${getApplicationAPIURL}"
+                                def appAPIStatus = sh returnStdout: true, script: "jq -c '.status' app.json"
+                                appAPIStatus = appAPIStatus.replaceAll("\\s","")
+                                if (appAPIStatus == 403 || appAPIStatus == '403') {
+                                    println "WARN -------------------Application ${microservice} does not exist-------------------"
+                                    sh "echo ${microservice} >> apps_not_evailable.txt"
+                                } else {
+                                    /*
+                                    *Check if the build pipeline is already running
+                                    */
+                                    def getPipelinesAPIURL = "${spinnakerGateHost}/applications/${microservice}/pipelines?limit=&statuses=RUNNING"
+                                    sh "curl -X GET -H 'Content-Type: application/json' --cert '/home/jenkins/secrets/client.crt' --key '/home/jenkins/secrets/client_unenc.key' -k -o existing_pipeline.json -# '${getPipelinesAPIURL}'"
+                                    sh '''#!/bin/bash +x
+                                        PIPELINES=$(jq -c '.' existing_pipeline.json)
+                                        for row in $(echo "$PIPELINES" | jq -r '.[] | @base64'); do
+                                            _jq() {
+                                                echo ${row} | base64 --decode | jq -r ${1}
+                                            }
+                                            PIPELINE_NAME=$(_jq '.name')
+                                            BUILD_PIPELINE_NAME=$(cat build_pipeline_name.txt)
+                                            echo "\n----------PIPELINE_NAME----------$PIPELINE_NAME"
+                                            if [ "$PIPELINE_NAME" = "$BUILD_PIPELINE_NAME" ]; then
+                                                echo "$BUILD_PIPELINE_NAME" > running.txt
+                                                echo "$BUILD_PIPELINE_NAME" >> pipelines_running.txt
+                                            fi
+											DEPLOY_PIPELINE_NAME=$(cat deploy_pipeline_name.txt)
+											if [ "$PIPELINE_NAME" = "$DEPLOY_PIPELINE_NAME" ]; then
+												echo $(_jq '.id') > deploy_pipeline_id.txt
+											fi
+                                            DEPLOY_V2_PIPELINE_NAME=$(cat deploy_v2_pipeline_name.txt)
+											if [ "$PIPELINE_NAME" = "$DEPLOY_V2_PIPELINE_NAME" ]; then
+												echo $(_jq '.id') > deploy_v2_pipeline_id.txt
+											fi
+                                        done
+                                    '''
+                                    def runningPipelineExists = fileExists 'running.txt'
+                                    if (runningPipelineExists) {
+                                        println "WARN -------------------${microservice}-build is already running-------------------"
+                                        sh "rm running.txt"
+                                    } else {
+										/*
+                                        *Stop QA pipeline if it is already waiting at DEV managers approval MJ stage
+                                        */
+										def deployPiplineAlreadyRunning = fileExists 'deploy_pipeline_id.txt'
+										if (deployPiplineAlreadyRunning) {
+											println "WARN -------------------${microservice}-deploy is already running and stopping it now-------------------"
+                                            def pipelineId = readFile 'deploy_pipeline_id.txt'
+                                            pipelineId = pipelineId.replaceAll("\\s","")
+                                            def cancelPipelineAPIURL = "${spinnakerGateHost}/applications/$microservice/pipelines/$pipelineId/cancel"
+                                            sh "curl -X PUT -H 'Content-Type: application/json' --cert '/home/jenkins/secrets/client.crt' --key '/home/jenkins/secrets/client_unenc.key' -k -# ${cancelPipelineAPIURL}"
+                                            sh "rm deploy_pipeline_id.txt"
+                                        }
+                                        def deployV2PiplineAlreadyRunning = fileExists 'deploy_v2_pipeline_id.txt'
+										if (deployV2PiplineAlreadyRunning) {
+											println "WARN -------------------${microservice}-deploy-v2 is already running and stopping it now-------------------"
+                                            def pipelineId = readFile 'deploy_v2_pipeline_id.txt'
+                                            pipelineId = pipelineId.replaceAll("\\s","")
+                                            def cancelPipelineAPIURL = "${spinnakerGateHost}/applications/$microservice/pipelines/$pipelineId/cancel"
+                                            sh "curl -X PUT -H 'Content-Type: application/json' --cert '/home/jenkins/secrets/client.crt' --key '/home/jenkins/secrets/client_unenc.key' -k -# ${cancelPipelineAPIURL}"
+                                            sh "rm deploy_v2_pipeline_id.txt"
+                                        }
+
+                                        /*
+                                        *Trigger Pipeline
+                                        */
+										println "INFO -------------------Starting ${microservice}-build pipeline-------------------"
+                                        def triggerPipelineAPIURL = "${spinnakerGateHost}/pipelines/${microservice}/${microservice}-build"
+                                        sh "curl -X POST -H 'Content-Type: application/json' --cert '/home/jenkins/secrets/client.crt' --key '/home/jenkins/secrets/client_unenc.key' -k -# ${triggerPipelineAPIURL}"
+                                        
+                                        /*
+                                        *Get pipeline detail to get pipeline id and MJ stage id
+                                        */
+                                        /* sh "curl -X GET -H 'Content-Type: application/json' -H 'Cookie: SESSION=${activeSession}' -o pipeline.json -# '${getPipelinesAPIURL}'"
+                                        
+                                        sh '''#!/bin/bash +x
+                                            PIPELINES=$(jq -c '.' pipeline.json)
+                                            BUILD_PIPELINE_NAME=$(cat build_pipeline_name.txt)
+                                            for row in $(echo "$PIPELINES" | jq -r '.[] | @base64'); do
+                                                _jq() {
+                                                    echo ${row} | base64 --decode | jq -r ${1}
+                                                }
+                                                PIPELINE_NAME=$(_jq '.name')
+                                                echo "\n........PIPELINE_NAME-----$PIPELINE_NAME..............BUILD_PIPELINE_NAME-----$BUILD_PIPELINE_NAME........"
+                                                if [ "$PIPELINE_NAME" = "$BUILD_PIPELINE_NAME" ]; then
+                                                    echo $(_jq '.id') > pipeline_id.txt
+                                                    STAGES=$(_jq '.stages')
+                                                    for row in $(echo "${STAGES}" | jq -r '.[] | @base64'); do
+                                                        _jq() {
+                                                            echo ${row} | base64 --decode | jq -r ${1}
+                                                        }
+                                                        STAGE_NAME=$(_jq '.name')
+                                                        echo "\n----------STAGE_NAME----------$STAGE_NAME"
+                                                        if [ "$STAGE_NAME" = "BuildApproval" ]; then
+                                                            echo $(_jq '.id') > mj_stage_id.txt
+                                                        fi
+                                                    done
+                                                fi
+                                            done
+                                        ''' */
+                                        
+                                        /*
+                                        *Approve build pipline MJ stage
+                                        */
+                                        /* def mjStageExists = fileExists 'mj_stage_id.txt'
+                                        if (mjStageExists) {
+											println "INFO -------------------Approving ${microservice}-build pipeline MJ stage-------------------"
+                                            def pipelineId = readFile 'pipeline_id.txt'
+                                            pipelineId = pipelineId.replaceAll("\\s","")
+                                            def mjId = readFile 'mj_stage_id.txt'
+                                            mjId = mjId.replaceAll("\\s","")
+                                            def approveMJAPIURL = "${spinnakerGateHost}/pipelines/$pipelineId/stages/$mjId"
+                                            sh "curl -X PATCH -H 'Content-Type: application/json' -H 'Cookie: SESSION=${activeSession}' -d '{\"judgmentStatus\":\"continue\"}' -# ${approveMJAPIURL}"
+                                            sh "rm mj_stage_id.txt pipeline_id.txt"
+                                        } else {
+                                            println "WARN -------------------${microservice}-build pipeline is not running-------------------"
+                                        } */
+										//  sh "rm pipeline.json"
+                                    }
+									sh "rm existing_pipeline.json"
+                                }
+                                sh "rm build_pipeline_name.txt app.json"
+                            }
+                            def pipelinesRunningExists = fileExists 'pipelines_running.txt'
+                            if (pipelinesRunningExists) {
+                                println "################################## Already Running Piplines ##################################"
+                                sh "cat pipelines_running.txt"
+                            }
+                            def appsNotAvailableExists = fileExists 'apps_not_evailable.txt'
+                            if (appsNotAvailableExists) {
+                                println "################################## Not Found Applications ##################################"
+                                sh "cat apps_not_evailable.txt"
+                            }
+                        } catch(e) {
+                            throw e
+                        } finally {
+                        }
+                    }
+/*                 } else {
+                    println "INFO -------------------Skipped trigerring build piplines-------------------"
+                } */
+            }
+            stage('Approve QA Deployments') {
+                if (params.Pipeline == 'Deploy') {
+                    dir('pipeline') {
+                        try {
+                            def microservices = readFile 'microservices-vaccination.txt'
+                            microservices.split('\n').each { microservice ->
+                                microservice = microservice.toLowerCase()
+                                println "################################## Microservice : ${microservice} ##################################"
+                                sh "echo ${microservice}-deploy > deploy_pipeline_name.txt"
+
+                                /*
+                                *Check if application exists in Spinnaker
+                                */
+                                def getApplicationAPIURL = "${spinnakerGateHost}/applications/${microservice}"
+                                sh "curl -X GET -H 'Content-Type: application/json' -H 'Cookie: SESSION=${activeSession}' -o app.json -# ${getApplicationAPIURL}"
+                                def appAPIStatus = sh returnStdout: true, script: "jq -c '.status' app.json"
+                                appAPIStatus = appAPIStatus.replaceAll("\\s","")
+                                if (appAPIStatus == 403 || appAPIStatus == '403') {
+                                    println "WARN -------------------Application ${microservice} does not exist-------------------"
+                                    sh "echo ${microservice} >> apps_not_evailable.txt"
+                                } else {
+                                    /*
+                                    *Check if the deploy pipeline is running
+                                    */
+                                    def getPipelinesAPIURL = "${spinnakerGateHost}/applications/${microservice}/pipelines?limit=&statuses=RUNNING"
+                                    sh "curl -X GET -H 'Content-Type: application/json' -H 'Cookie: SESSION=${activeSession}' -o existing_pipeline.json -# '${getPipelinesAPIURL}'"
+                                    sh '''#!/bin/bash +x
+                                        PIPELINES=$(jq -c '.' existing_pipeline.json)
+                                        for row in $(echo "$PIPELINES" | jq -r '.[] | @base64'); do
+                                            _jq() {
+                                                echo ${row} | base64 --decode | jq -r ${1}
+                                            }
+                                            PIPELINE_NAME=$(_jq '.name')
+                                            DEPLOY_PIPELINE_NAME=$(cat deploy_pipeline_name.txt)
+                                            echo "\n----------PIPELINE_NAME----------$PIPELINE_NAME"
+                                            if [ "$PIPELINE_NAME" = "$DEPLOY_PIPELINE_NAME" ]; then
+                                                echo "$DEPLOY_PIPELINE_NAME" > running.txt
+                                            fi
+                                        done
+                                    '''
+                                    def runningPipelineExists = fileExists 'running.txt'
+                                    if (runningPipelineExists) {
+                                        /*
+                                        *Get pipeline detail to get pipeline id and MJ stage id
+                                        */
+                                        sh "curl -X GET -H 'Content-Type: application/json' -H 'Cookie: SESSION=${activeSession}' -o pipeline.json -# '${getPipelinesAPIURL}'"
+                                        
+                                        sh '''#!/bin/bash +x
+                                            PIPELINES=$(jq -c '.' pipeline.json)
+                                            DEPLOY_PIPELINE_NAME=$(cat deploy_pipeline_name.txt)
+                                            for row in $(echo "$PIPELINES" | jq -r '.[] | @base64'); do
+                                                _jq() {
+                                                    echo ${row} | base64 --decode | jq -r ${1}
+                                                }
+                                                PIPELINE_NAME=$(_jq '.name')
+                                                echo "\n........PIPELINE_NAME-----$PIPELINE_NAME..............DEPLOY_PIPELINE_NAME-----$DEPLOY_PIPELINE_NAME........"
+                                                if [ "$PIPELINE_NAME" = "$DEPLOY_PIPELINE_NAME" ]; then
+                                                    echo $(_jq '.id') > pipeline_id.txt
+                                                    STAGES=$(_jq '.stages')
+                                                    for row in $(echo "${STAGES}" | jq -r '.[] | @base64'); do
+                                                        _jq() {
+                                                            echo ${row} | base64 --decode | jq -r ${1}
+                                                        }
+                                                        STAGE_NAME=$(_jq '.name')
+                                                        echo "\n----------STAGE_NAME----------$STAGE_NAME"
+                                                        if [ "$STAGE_NAME" = "Manual Judgement" ]; then
+                                                            echo $(_jq '.id') > mj_stage_id.txt
+                                                        fi
+                                                    done
+                                                fi
+                                            done
+                                        '''
+                                        
+                                        /*
+                                        *Approve deploy pipline MJ stage
+                                        */
+                                        def mjStageExists = fileExists 'mj_stage_id.txt'
+                                        if (mjStageExists) {
+											println "INFO -------------------Approving ${microservice}-deploy pipeline MJ stage-------------------"
+                                            def pipelineId = readFile 'pipeline_id.txt'
+                                            pipelineId = pipelineId.replaceAll("\\s","")
+                                            def mjId = readFile 'mj_stage_id.txt'
+                                            mjId = mjId.replaceAll("\\s","")
+                                            def approveMJAPIURL = "${spinnakerGateHost}/pipelines/$pipelineId/stages/$mjId"
+                                            sh "curl -X PATCH -H 'Content-Type: application/json' -H 'Cookie: SESSION=${activeSession}' -d '{\"judgmentStatus\":\"continue\"}' -# ${approveMJAPIURL}"
+                                            sh "rm mj_stage_id.txt pipeline_id.txt"
+                                        } else {
+                                            println "WARN -------------------${microservice}-deploy pipeline is not running-------------------"
+                                        }
+										sh "rm running.txt pipeline.json"
+                                    } else {
+                                        sh "echo ${microservice}-deploy >> pipelines-not-running.txt"
+                                        println "WARN -------------------${microservice}-deploy is not running-------------------"
+                                    }
+									sh "rm existing_pipeline.json"
+                                }
+								sh "rm deploy_pipeline_name.txt app.json"
+                            }
+                            def pipelinesNotRunningExists = fileExists 'pipelines-not-running.txt'
+                            if (pipelinesNotRunningExists) {
+                                println "################################## Not Running Piplines ##################################"
+                                sh "cat pipelines-not-running.txt"
+                            }
+                            def appsNotAvailableExists = fileExists 'apps_not_evailable.txt'
+                            if (appsNotAvailableExists) {
+                                println "################################## Not Found Applications ##################################"
+                                sh "cat apps_not_evailable.txt"
+                            }
+                        } catch(e) {
+                            throw e
+                        } finally {
+                        }
+                    }
+                } else {
+                    println "INFO -------------------Skipped approving QA deployments-------------------"
+                }
+            }
+        }
+    }
+}
+

@@ -1,0 +1,122 @@
+/* (c) Walgreen Co. All rights reserved.*/
+
+def label = "gradle-build-${UUID.randomUUID().toString()}"
+podTemplate(
+    label: label,
+    name: label,
+    imagePullSecrets: ['nonprodregistry'],
+    containers: [
+        containerTemplate(
+            name: label,
+            image: 'nonprodregistry.azurecr.io/baseimg/wag-dotcom-build-adoptopenjdk13_nodejs12_bionic:v1',
+            command: 'cat',
+            ttyEnabled: true,
+            alwaysPullImage: true,
+            resourceRequestMemory: '1Gi',
+            resourceLimitMemory: '2Gi',
+            resourceRequestCpu: '500m',
+            resourceLimitCpu: '2500m'
+        )
+    ],
+    volumes: [
+        hostPathVolume(mountPath: '/var/run/docker.sock', hostPath: '/var/run/docker.sock')
+    ]
+){
+    properties([
+                    [$class: 'BuildDiscarderProperty', strategy: [$class: 'LogRotator', numToKeepStr: '10']],
+                    parameters([
+                        choice(choices: ['Dev', 'QA', 'Prod', 'All'].join("\n"), description: 'Environment to generate config file', name: 'Environment'),
+                        string(defaultValue: '', description: 'Batch Repo Name', name: 'RepoName')
+                        ]),
+                    disableConcurrentBuilds()
+                ])
+    timeout(60) {
+        node(label) {
+            ws ('/home/jenkins/agent/workspace/build'){
+                container(label) {
+                    def url = "https://wagwiki.wba.com/stash/scm/ecomm/${params.RepoName}";
+                    //def RepoName = sh(script: "echo $url |  grep -o -P '(?<=http://).*(?=.git)'", returnStdout: true).trim()
+                    stage('Clone') {
+                        dir('scripts') {
+                            git branch: 'master', credentialsId: 'wag_git_creds', url: 'https://wagwiki.wba.com/stash/scm/digdev/scripts.git'
+                        }
+                        dir('springbatch') {
+                            try {
+                                    sh "echo ${url}"
+                                    git branch: 'configdevops', credentialsId: 'wag_git_creds', url: "${url}"
+                                    } catch (exc) {
+                                currentBuild.result = "FAILURE"
+                                throw exc
+                            } finally {
+                            }
+                        }
+                    }
+                    stage('Configure Dev') {
+                        dir('scripts') {
+                            try {
+                                    if (params.Environment == 'All' || params.Environment == 'Dev') {
+                                        sh("python3 generateCronConfig.py dev")
+                                    } else {
+                                        echo '****** Skipped Config Creation ******'
+                                    }
+                            } catch (exc) {
+                                currentBuild.result = "FAILURE"
+                                throw exc
+                            } finally {
+                            }
+                        }
+                    }
+                    stage('Configure QA') {
+                        dir('scripts') {
+                            try {
+                                    if (params.Environment == 'All' || params.Environment == 'QA') {
+                                        sh("python3 generateCronConfig.py qa")
+                                    } else {
+                                        echo '****** Skipped Config Creation ******'
+                                    }
+                            } catch (exc) {
+                                currentBuild.result = "FAILURE"
+                                throw exc
+                            } finally {
+                            }
+                        }
+                    }
+                    stage('Configure Prod') {
+                        dir('scripts') {
+                            try {
+                                    if (params.Environment == 'All' || params.Environment == 'Prod') {
+                                        sh("python3 generateCronConfig.py prod")
+                                    } else {
+                                        echo '****** Skipped Config Creation ******'
+                                    }
+                            } catch (exc) {
+                                currentBuild.result = "FAILURE"
+                                throw exc
+                            } finally {
+                            }
+                        }
+                    }
+                    stage('Commit Repo'){
+                        dir('springbatch') {
+                            try {
+                                    withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'wag_git_creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
+                                    sh("git add config/cron/*.yaml")
+                                    sh("git config --global user.email 'digital-ms-devops@walgreens.com'")
+                                    sh("git config --global user.name 'ecomm-stash-int'")
+                                    sh("git commit -m 'Cron config changes'")
+                                    sh("git push https://${env.USERNAME}:${env.PASSWORD}@wagwiki.wba.com/stash/scm/ecomm/'${params.RepoName}'.git")
+                                    //sh 'sleep 1800'
+                                    }  
+                                    } catch (exc) {
+                                currentBuild.result = "FAILURE"
+                                throw exc
+                            } finally {
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

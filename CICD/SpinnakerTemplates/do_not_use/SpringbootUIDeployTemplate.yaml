@@ -1,0 +1,340 @@
+schema: "1"
+id: SpringBootUIDeployFeatureTemplateV1
+metadata:
+  name: Spring Boot UI Deploy Pipeline Template
+  description: Deploy template for Spring Boot UI microservices
+  owner: syedabdul.raqib@walgreens.com
+  scopes: [global]
+variables:
+- name: microserviceName
+  description: Name of the Microservice
+- name: minCPU
+  description: Minimum CPU needed for the Microservice
+  example: 1, 0.5, 0.25 [in core(s)]
+- name: maxCPU
+  description: Maximum number of core that can be allocated for the Microservice
+  example: 1, 0.5, 0.25 [in core(s)]
+- name: minMemory
+  description: Minimum memory needed for the Microservice
+  example: 1024Mi, 512Mi, 256Mi [in MB]
+- name: maxMemory
+  description: Maximum memory that can be allocated for the Microservice
+  example: 1024Mi, 512Mi, 256Mi [in MB]
+- name: minNumberOfReplicas
+  description: Minimum number of replicas
+  example: 1, 2, 3, 4
+- name: maxNumberOfReplicas
+  description: Maximum number of replicas
+  example: 1, 2, 3, 4
+- name: cpuUtilizationTargetForAutoScaling
+  description: CPU utilization target for scaling
+  example: 80, 60, 40
+- name: livelinessURL
+  description: Health URL of the Microservice
+  example: /{microserviceName}/v1/health
+- name: args
+  description: Arguments to start the application
+  example: java -jar -Xms256m -Xmx256m /usr/local/ecomm/app/ms-svc.jar 
+- name: TeamDL
+  description: Enter Your Team DL
+  example: ecomscm@walgreens.com
+- name: secrets
+  type: list
+- name: envVariables
+  type: list
+- name: TeamName
+  description: Enter Team Name
+  example: cac, dpf
+configuration:
+  concurrentExecutions: {}
+  triggers:
+  - account: nonprodregistry
+    enabled: true
+    name: unnamed0
+    organization: digital/dotcom
+    registry: nonprodregistry.azurecr.io
+    repository: digital/dotcom/{{ microserviceName }}
+    runAsUser: spinnaker-svc-account
+    status:
+    - successful
+    tag: ".*"
+    type: docker
+  parameters: []
+  notifications: []
+  description: ""
+stages:
+- id: configureDev
+  type: jenkins
+  name: Configure DEV
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-configmap-dev-feature"
+    master: intops-jenkins
+    parameters: {}
+- id: deployToDev
+  type: deploy
+  name: Deploy to Dev
+  dependsOn:
+  - configureDev
+  config:
+    notifications:
+    - address: "{{ TeamDL }}"
+      cc: ecomscm@walgreens.com
+      level: stage
+      type: email
+      when:
+      - stage.starting
+      - stage.complete
+      - stage.failed
+    sendNotifications: true
+    parameters: {}
+    clusters:
+    - account: dcomdev03
+      application: "{{ microserviceName }}"
+      cloudProvider: kubernetes
+      capacity:
+        max: "{{ maxNumberOfReplicas }}"
+        min: "{{ minNumberOfReplicas }}"
+      containers:
+      - args: ["{{ args }}"]
+        command: ["/bin/sh", "-c"]
+        envVars: |
+          {% for secret in secrets %}
+          {% for envVar in secret.envVars %}
+          - {% module secretsEnvSourceModule envName=envVar secretName=secret.name %}
+          {% endfor %}
+          {% endfor %}
+          {% for envVariable in envVariables %}
+          - {% module envVarsModule name=envVariable.name value=envVariable.value %}
+          {% endfor %}
+        imageDescription:
+          account: nonprodregistry
+          fromTrigger: true
+          imageId: "nonprodregistry.azurecr.io/digital/dotcom/{{ microserviceName }} (Tag resolved at runtime)"
+          registry: nonprodregistry.azurecr.io
+          repository: digital/dotcom/{{ microserviceName }}
+        imagePullPolicy: ALWAYS
+        limits:
+          cpu: "{{ maxCPU }}"
+          memory: "{{ maxMemory }}"
+        livenessProbe:
+          failureThreshold: 3
+          handler:
+            execAction:
+              commands:
+              - curl
+              - -s
+              - -f
+              - http://localhost:8080/{{ livelinessURL }}
+            httpGetAction:
+              httpHeaders: []
+              path: "{{ livelinessURL }}"
+              port: 8080
+              uriScheme: HTTP
+            tcpSocketAction:
+              port: 80
+            type: EXEC
+          initialDelaySeconds: 150
+          periodSeconds: 60
+          failureThreshold: 2
+          timeoutSeconds: 1
+        name: "{{ microserviceName }}"
+        ports:
+        - containerPort: 8080
+          hostIp:
+          hostPort:
+          name: http
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          handler:
+            execAction:
+              commands:
+              - curl
+              - -s
+              - -f
+              - http://localhost:8080/{{ livelinessURL }}
+            httpGetAction:
+              httpHeaders: []
+              path: "{{ livelinessURL }}"
+              port: 8080
+              uriScheme: HTTP
+            tcpSocketAction:
+              port: 80
+            type: EXEC
+          initialDelaySeconds: 150
+          periodSeconds: 60
+          failureThreshold: 2
+          timeoutSeconds: 1       
+        requests:
+          cpu: "{{ minCPU }}"
+          memory: "{{ minMemory }}"
+        volumeMounts: |
+          {% for secret in secrets %}
+          - {% module volumeMountModule path="/deployments/secrets" name=secret.name subPath="NA" %}
+          {% endfor %}
+          - mountPath: "/deployments/config"
+            name: "{{ microserviceName }}"
+            readOnly: false
+          - mountPath: "/deployments/logs"
+            name: "applogs"
+            readOnly: false
+      deployment:
+        deploymentStrategy:
+          rollingUpdate:
+            maxSurge: 1
+            maxUnavailable: 1
+          type: RollingUpdate
+        enabled: false
+        minReadySeconds: 0
+      dnsPolicy: ClusterFirst
+      interestingHealthProviderNames:
+      - KubernetesContainer
+      - KubernetesPod
+      loadBalancers:
+      - "{{ microserviceName }}"
+      maxRemainingAsgs: 4
+      namespace: dotcom-app
+      nodeSelector: {}
+      podAnnotations: {}
+      provider: kubernetes
+      region: dotcom-app
+      replicaSetAnnotations: {}
+      scaleDown: true
+      scalingPolicy:
+        cpuUtilization:
+          target: "{{ cpuUtilizationTargetForAutoScaling }}"
+      strategy: redblack
+      targetSize: 1
+      terminationGracePeriodSeconds: 30
+      volumeSources: |
+        {% for secret in secrets %}
+        - {% module secretVolumeSourceModule name=secret.name %}
+        {% endfor %}
+        - configMap:
+           configMapName: "{{ microserviceName }}-config"
+          name: "{{ microserviceName }}"
+          type: CONFIGMAP
+        - hostPath:
+            path: "/var/log/containers"
+          name: applogs
+          type: HOSTPATH
+- id: FunctionalTest
+  type: jenkins
+  name: Functional Test
+  dependsOn:
+  - deployToDev
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-functional-test-feature"
+    master: intops-jenkins
+    notifications:
+    - address: "{{ TeamDL }}"
+      cc: ecomscm@walgreens.com
+      level: stage
+      type: email
+      when:
+      - stage.starting
+      - stage.complete
+      - stage.failed
+    parameters:
+    sendNotifications: true
+    parameters: {}
+- id: LoadTest
+  type: jenkins
+  name: Load Test
+  dependsOn:
+  - FunctionalTest
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-load-test-feature"
+    master: intops-jenkins
+    notifications:
+    - address: "{{ TeamDL }}"
+      cc: ecomscm@walgreens.com
+      level: stage
+      type: email
+      when:
+      - stage.starting
+      - stage.complete
+      - stage.failed
+    parameters:
+    sendNotifications: true
+    parameters: {}
+partials: []
+modules:
+- id: secretsEnvSourceModule
+  usage: Defines the env source for exposing secrets as env variables
+  variables:
+  - name: envName
+    description: env variable name
+  - name: secretName
+    description: Secret Name
+  definition:
+    envSource:
+      secretSource:
+        secretName: "{{ secretName }}"
+        key: "{{ envName }}"
+    name: "{{ envName }}"
+- id: volumeMountModule
+  usage: Defines the volume mount of a container
+  variables:
+  - name: name
+    description: mount source name
+  - name: path
+    description: mount path
+  - name: subPath
+    description: subpath
+  when: 
+  - "{{ subPath == 'NA' }}"
+  definition:
+    mountPath: "{{ path }}/{{ name }}"
+    name: "{{ name }}"
+    readOnly: false
+- id: volumeMountWithSubpathModule
+  usage: Defines the volume mount of a container
+  variables:
+  - name: name
+    description: mount source name
+  - name: path
+    description: mount path
+  - name: subPath
+    description: subpath
+  definition:
+    mountPath: "{{ path }}/{{ subPath }}"
+    name: "{{ name }}"
+    readOnly: false
+- id: secretVolumeSourceModule
+  usage: Defines volume source for secrets
+  variables:
+  - name: name
+    description: secret name
+  definition:
+    name: "{{ name }}"
+    secret:
+      secretName: "{{ name }}"
+    type: SECRET
+- id: configMapVolumeSourceModule
+  usage: Defines volume source for config maps
+  variables:
+  - name: name
+    description: config map name
+  definition:
+    name: "{{ name }}"
+    configMap:
+      configMapName: "{{ name }}"
+    type: CONFIGMAP
+- id: envVarsModule
+  usage: Defines the ENV vars and values
+  variables:
+  - name: name
+    description: ENV variable name
+  - name: value
+    description: ENV variable value
+  definition:
+    name: "{{ name }}"
+    value: "{{ value }}"
+

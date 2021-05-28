@@ -1,0 +1,42 @@
+PrintConfig() {
+
+	_MODULE_NAME="${LIGHT_BLUE}${FUNCNAME[ 0 ]}${NO_COLOR}"
+
+	[[ -z "${SETTINGS}" ]] && echo -e "\n${_MODULE_NAME}${LIGHT_BLUE}:${LINENO}${NO_COLOR} - ${RED}ERROR: Unable to proceed because the variable ${LIGHT_CYAN}'SETTINGS'${RED} is not defined in the module. Check if you have sourced the ${LIGHT_BLUE}'Vars'${RED} module in the main script. Exiting..${NO_COLOR}\n" && exit 80
+
+	echo -e "\n${LIGHT_CYAN}Cluster Installation Parameters in '$CONFIGFILE':${NO_COLOR}"
+	echo -e "${LIGHT_CYAN}==============================================================================${NO_COLOR}\n"
+
+	for SETTING in ${SETTINGS}
+	do
+		echo -e "${LIGHT_CYAN}${SETTING}${NO_COLOR} = ${CYAN}'${!SETTING}'${NO_COLOR}"
+	done
+
+	if [[ ! -z "${INTOPS_SETTINGS}" ]]; then
+		for SETTING in ${INTOPS_SETTINGS}
+		do
+			echo -e "${LIGHT_CYAN}${SETTING}${NO_COLOR} = ${CYAN}'${!SETTING}'${NO_COLOR}"
+		done
+	fi
+
+	echo -e "\n${LIGHT_PURPLE}Pre-defined User Inputs in '$CONFIGFILE':${NO_COLOR}"
+	echo -e "${LIGHT_PURPLE}=======================================================================${NO_COLOR}\n"
+
+	for PARAMETER in ${PARAMETERS}
+	do
+		echo -e "${LIGHT_PURPLE}${PARAMETER}${NO_COLOR} = ${PURPLE}'${!PARAMETER}'${NO_COLOR}"
+	done
+
+	_RESPONSE=""
+	while [ "${_RESPONSE}" != "y" ] && [ "${_RESPONSE}" != "n" ]
+	do
+		echo -e "\nDo you want to proceed with these settings (y/n)? \c"
+		read _RESPONSE
+		_RESPONSE=`echo ${_RESPONSE} | tr -dc '[:alnum:]\n\r' | tr '[:upper:]' '[:lower:]'`
+	done
+
+	if [ "${_RESPONSE}" == "n" ]; then
+		echo
+		exit 100
+	fi
+}

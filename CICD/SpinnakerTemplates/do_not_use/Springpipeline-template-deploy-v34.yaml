@@ -1,0 +1,103 @@
+schema: "1"
+id: springDeployPipelineTemplateV6
+metadata:
+  name: spring App Deploy Pipeline Template Version 6
+  description: Pipeline Template to deploy spring application Version 6
+  owner: syedabdul.raqib@walgreens.com
+  scopes: [global]
+variables:
+- name: microserviceName
+  description: Name of the Microservice
+- name: minCPU
+  description: Minimum CPU needed for the Microservice
+  example: 1, 0.5, 0.25 [in core(s)]
+- name: maxCPU
+  description: Maximum number of core that can be allocated for the Microservice
+  example: 1, 0.5, 0.25 [in core(s)]
+- name: minMemory
+  description: Minimum memory needed for the Microservice
+  example: 1024Mi, 512Mi, 256Mi [in MB]
+- name: maxMemory
+  description: Maximum memory that can be allocated for the Microservice
+  example: 1024Mi, 512Mi, 256Mi [in MB]
+- name: minNumberOfReplicas
+  description: Minimum number of replicas
+  example: 1, 2, 3, 4
+- name: maxNumberOfReplicas
+  description: Maximum number of replicas
+  example: 1, 2, 3, 4
+- name: cpuUtilizationTargetForAutoScaling
+  description: CPU utilization target for scaling
+  example: 80, 60, 40
+- name: livelinessURL
+  description: Health URL of the Microservice
+  example: /{microserviceName}/v1/ui/health
+- name: EmailNotification
+- name: EmailNotificationCC
+- name: appEnvVariables
+  type: list
+configuration:
+  concurrentExecutions: {}
+  triggers:
+  - account: nonprodregistry
+    application: "{{microserviceName}}"
+    enabled: true
+    name: unnamed0
+    registry: nonprodregistry.azurecr.io
+    repository: spring/"{{microserviceName}}"
+    status:
+    - successful
+    tag: null
+    type: docker
+  parameters: []
+  notifications:
+  - address: "{{EmailNotification}}"
+    cc: "{{EmailNotificationCC}}"
+    level: stage
+    type: email
+    when:
+    - stage.starting
+    - stage.complete
+    - stage.failed
+  - address: "{{EmailNotification}}"
+    cc: "{{EmailNotification}}"
+    level: stage
+    type: email
+    when:
+    - stage.starting
+    - stage.complete
+    - stage.failed
+  sendNotifications: true
+  description: ""
+stages:
+- id: configureDev
+  type: jenkins
+  name: Configure DEV
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}-configure-dev"
+    master: intops-jenkins
+    parameters: {}
+  notifications:
+  - address: "{{EmailNotification}}"
+    cc: "{{EmailNotification}}"
+    level: stage
+    type: email
+    when:
+    - stage.starting
+    - stage.complete
+    - stage.failed
+  - address: "{{EmailNotification}}"
+    cc: "{{EmailNotification}}"
+    level: stage
+    type: email
+    when:
+    - stage.starting
+    - stage.complete
+    - stage.failed
+  sendNotifications: true
+  description: ""
+    
+
+

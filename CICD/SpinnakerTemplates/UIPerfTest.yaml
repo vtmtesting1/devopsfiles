@@ -1,0 +1,42 @@
+schema: "1"
+id: UIPerfTestTemplateV1
+metadata:
+  name: UI Perf Test Template
+  description: UI Perf Test Pipeline Template
+  owner: digital-ms-devops@walgreens.com
+  scopes:
+  - global
+variables:
+- name: microserviceName
+  description: Name of the Microservice
+- name: TeamDL
+  description: Enter Your Team DL
+  example: ecomscm@walgreens.com
+configuration:
+  concurrentExecutions:
+    limitConcurrent: true
+    parallel: false
+  triggers: []
+  parameters: []
+  notifications: []
+  description: ""
+stages:
+- id: UIPerfTest
+  type: jenkins
+  name: UI Perf Test
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-ui-perf-test"
+    master: intopsprd-jenkins
+    notifications:
+    - address: "{{ TeamDL }}"
+      level: stage
+      type: email
+      when:
+      - stage.failed
+    sendNotifications: true
+    parameters: {}
+partials: []
+modules: []
+

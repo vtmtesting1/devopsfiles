@@ -1,0 +1,18 @@
+InstallFilebeat() {
+	echo -e "\nCleaning up Filebeat..\n"
+
+	for YAML in $(ls ../filebeat/*.y*ml | sort -r)
+	do
+		${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete -f ${YAML}
+	done
+
+	echo -e "\nSleeping for 30 seconds..\n"
+	sleep 30
+
+	echo -e "\nInstalling Filebeat..\n"
+
+	for YAML in $(ls ../filebeat/*.y*ml | sort)
+	do
+		${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" create -f ${YAML}
+	done
+}

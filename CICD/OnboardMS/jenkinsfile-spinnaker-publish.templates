@@ -1,0 +1,547 @@
+/* (c) Walgreen Co. All rights reserved.*/
+node {
+    properties([
+        parameters([
+            choice(choices: ['Feature', 'Develop', 'QA3', 'All'].join("\n"), description: 'Select All to publish all templates, Feature for feature branch pipeline template, Develop for develop branch pipeline template and QA3 for qa3 env pipeline template', name: 'Branch'),
+            choice(choices: ['Build', 'Deploy', 'DamuploadQA', 'JobSuspend', 'ManualJobRun', 'VSDeploy', 'VSRollback', 'WWW3Deploy', 'ProdDeploy', 'ProdEUDeploy', 'ProdJobSuspend', 'ProdEUJobSuspend', 'ProdManualJobRun', 'ProdEUManualJobRun', 'FunctionalTest', 'UIPerfTest', 'LoadTest', 'All'].join("\n"), description: 'Select the pipeline', name: 'Pipeline'),
+            choice(choices: ['NodeJSAPIUI', 'NodeJSAPI', 'NodeJSAPIMI', 'NodeJSBatch', 'SpringBootAPIUI', 'SpringBootAPI', 'SpringBootAPIMI', 'SpringBootIAAS', 'SpringBootBatch', 'All'].join("\n"), description: 'Select type of template', name: 'TemplateType')
+        ]),
+        [$class: 'BuildDiscarderProperty', strategy: [$class: 'LogRotator', numToKeepStr: '10']],
+        disableConcurrentBuilds()
+    ])
+    stage('Clone') {
+        dir('digital-cicd') {
+            git branch: 'master', credentialsId: 'wag_git_creds', url: 'https://wagwiki.wba.com/stash/scm/digdev/digital-cicd.git'
+        }
+        dir('roer-go') {
+            git branch: 'master', credentialsId: 'wag_git_creds', url: 'https://wagwiki.wba.com/stash/scm/ecomm/spinnaker-template.git'
+        }
+    }
+    stage('Build - Feature Pipeline Template') {
+        try {
+            if ((params.Pipeline == 'Build' || params.Pipeline == 'All') && (params.Branch == 'All' || params.Branch == 'Feature')) {
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                dir('digital-cicd') {
+                    /*sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/BuildTemplateFeature.yaml'*/
+                    sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/BuildTemplateFeature.yaml'
+
+                }
+            } else {
+                echo '****** Skipped Build Feature Pipeline Template Publish ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Build - QA3 Pipeline Template') {
+        try {
+            if ((params.Pipeline == 'Build' || params.Pipeline == 'All') && (params.Branch == 'All' || params.Branch == 'QA3')) {
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                dir('digital-cicd') {
+                    /*sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/BuildTemplateQA3.yaml'*/
+                    sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/BuildTemplateQA3.yaml'
+
+                }
+            } else {
+                echo '****** Skipped Build QA3 Pipeline Template Publish ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Build - Develop Pipeline Template') {
+        try {
+            if ((params.Pipeline == 'Build' || params.Pipeline == 'All') && (params.Branch == 'All' || params.Branch == 'Develop')) {
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                dir('digital-cicd') {
+                    /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/BuildTemplate.yaml'*/
+                    sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/BuildTemplate.yaml'
+                    // sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/BuildTemplateBatch.yaml'
+                }
+            } else {
+                echo '****** Skipped Build Develop Pipeline Template Publish ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Deploy - Feature Pipeline Template') {
+        try {
+            if ((params.Pipeline == 'Deploy' || params.Pipeline == 'JobSuspend' || params.Pipeline == 'ManualJobRun' || params.Pipeline == 'All') && (params.Branch == 'All' || params.Branch == 'Feature')) {
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                dir('digital-cicd') {
+                    if (params.TemplateType == 'NodeJSAPIUI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/feature/CD-API-UI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/feature/CD-API-UI.yaml'
+                    }
+                    if (params.TemplateType == 'NodeJSAPIUIDAM' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/feature/CD-API-UI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/feature/CD-API-UI-DAM.yaml'
+                    }
+                    if (params.TemplateType == 'NodeJSAPI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/feature/CD-API.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/feature/CD-API.yaml'
+                    }
+                    if (params.TemplateType == 'NodeJSAPIMI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/feature/CD-API-MI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/feature/CD-API-MI.yaml'
+                    }
+                    if (params.TemplateType == 'SpringBootAPIUI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/feature/CD-API-UI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/feature/CD-API-UI.yaml'
+                    }
+                    if (params.TemplateType == 'SpringBootAPI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/feature/CD-API.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/feature/CD-API.yaml'
+                    }
+                    if (params.TemplateType == 'SpringBootAPIMI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/feature/CD-API-MI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/feature/CD-API-MI.yaml'
+                    }
+                    if ((params.Pipeline == 'Deploy' || params.Pipeline == 'All') && (params.TemplateType == 'SpringBootBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/feature/CD-Batch.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/feature/CD-Batch.yaml'
+                    }
+                    if ((params.Pipeline == 'JobSuspend' || params.Pipeline == 'All') && (params.TemplateType == 'SpringBootBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/feature/Batch-JobSuspend.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/feature/Batch-JobSuspend.yaml'
+                    }
+                    if ((params.Pipeline == 'ManualJobRun' || params.Pipeline == 'All') && (params.TemplateType == 'SpringBootBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/feature/Batch-ManualJobRun.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/feature/Batch-ManualJobRun.yaml'
+                    }
+                    if ((params.Pipeline == 'Deploy' || params.Pipeline == 'All') && (params.TemplateType == 'NodeJSBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/feature/CD-Batch.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/feature/CD-Batch.yaml'
+                    }
+                    if ((params.Pipeline == 'JobSuspend' || params.Pipeline == 'All') && (params.TemplateType == 'NodeJSBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/feature/Batch-JobSuspend.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/feature/Batch-JobSuspend.yaml'
+                    }
+                    if ((params.Pipeline == 'ManualJobRun' || params.Pipeline == 'All') && (params.TemplateType == 'NodeJSBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/feature/Batch-ManualJobRun.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/feature/Batch-ManualJobRun.yaml'
+                    }
+                }
+            } else {
+                echo '****** Skipped Deploy Feature Pipeline Template Publish ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Deploy - QA3 Pipeline Template') {
+        try {
+            if ((params.Pipeline == 'Deploy' || params.Pipeline == 'All') && (params.Branch == 'All' || params.Branch == 'QA3')) {
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                dir('digital-cicd') {
+                    if (params.TemplateType == 'NodeJSAPIUI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/qa3/CD-API-UI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/qa3/CD-API-UI.yaml'
+                    }
+                    if (params.TemplateType == 'NodeJSAPI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/qa3/CD-API.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/qa3/CD-API.yaml'
+                    }
+                    if (params.TemplateType == 'NodeJSAPIMI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/qa3/CD-API-MI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/qa3/CD-API-MI.yaml'
+                    }
+                    if (params.TemplateType == 'SpringBootAPIUI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/qa3/CD-API-UI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/qa3/CD-API-UI.yaml'
+                    }
+                    if (params.TemplateType == 'SpringBootAPI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/qa3/CD-API.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/qa3/CD-API.yaml'
+                    }
+                    if (params.TemplateType == 'SpringBootAPIMI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/qa3/CD-API-MI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker02.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/qa3/CD-API-MI.yaml'
+                    }
+                }
+            } else {
+                echo '****** Skipped Deploy QA3 Pipeline Template Publish ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Deploy - Develop Pipeline Template') {
+        try {
+            if ((params.Pipeline == 'Deploy' || params.Pipeline == 'JobSuspend' || params.Pipeline == 'ManualJobRun' || params.Pipeline == 'All') && (params.Branch == 'All' || params.Branch == 'Develop')) {
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                dir('digital-cicd') {
+                    if (params.TemplateType == 'NodeJSAPIUI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/develop/CD-API-UI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/develop/CD-API-UI.yaml'
+                    }
+                    if (params.TemplateType == 'NodeJSAPI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/develop/CD-API.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/develop/CD-API.yaml'
+                    }
+                    // if (params.TemplateType == 'NodeJSAPIMI' || params.TemplateType == 'All') {
+                    //     /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/develop/CD-API-MI.yaml'*/
+                    //     sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/develop/CD-API-MI.yaml'
+                    // }
+                    if (params.TemplateType == 'SpringBootAPIUI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/CD-API-UI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" -v pipeline-template publish SpinnakerTemplates/springboot/develop/CD-API-UI.yaml'
+                    }
+                    if (params.TemplateType == 'SpringBootAPI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/CD-API.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/CD-API.yaml'
+                        // sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/CD-API-PROBE.yaml'
+                    }
+                    if (params.TemplateType == 'SpringBootAPIMI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/CD-API-MI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/CD-API-MI.yaml'
+                    }
+                    if ((params.Pipeline == 'Deploy' || params.Pipeline == 'All') && (params.TemplateType == 'SpringBootBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/CD-Batch.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/CD-Batch.yaml'
+                    }
+                    if ((params.Pipeline == 'JobSuspend' || params.Pipeline == 'All') && (params.TemplateType == 'SpringBootBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/Batch-JobSuspend.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/Batch-JobSuspend.yaml'
+                    }
+                    if ((params.Pipeline == 'ManualJobRun' || params.Pipeline == 'All') && (params.TemplateType == 'SpringBootBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/Batch-ManualJobRun.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/Batch-ManualJobRun.yaml'
+                    }
+                    if ((params.Pipeline == 'Deploy' || params.Pipeline == 'All') && (params.TemplateType == 'NodeJSBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/develop/CD-Batch.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/develop/CD-Batch.yaml'
+                    }
+                    if ((params.Pipeline == 'JobSuspend' || params.Pipeline == 'All') && (params.TemplateType == 'NodeJSBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/develop/QA-Batch-JobSuspend.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/develop/QA-Batch-JobSuspend.yaml'
+                    }
+                    if ((params.Pipeline == 'ManualJobRun' || params.Pipeline == 'All') && (params.TemplateType == 'NodeJSBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/develop/QA-Batch-ManualJobRun.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/develop/QA-Batch-ManualJobRun.yaml'
+                    }
+                }
+            } else {
+                echo '****** Skipped Deploy Develop Pipeline Template Publish ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+	stage('VS - CI/CD Pipeline Template') {
+        try {
+            if (params.Pipeline == 'VSDeploy' || params.Pipeline == 'All') {
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                dir('digital-cicd') {
+                    if (params.TemplateType == 'NodeJSAPIUI' || params.TemplateType == 'NodeJSAPI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/virtualservice/CI-CD.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/virtualservice/CI-CD.yaml'
+                    }
+                    if (params.TemplateType == 'SpringBootAPIUI' || params.TemplateType == 'SpringBootAPI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/virtualservice/CI-CD.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/virtualservice/CI-CD.yaml'    
+                    }
+                    if (params.TemplateType == 'SpringBootAPIMI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/virtualservice/CI-CD-MI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/virtualservice/CI-CD-MI.yaml'
+                    }
+                    if (params.TemplateType == 'SpringBootIAAS' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/virtualservice/CI-CD-IAAS.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/virtualservice/CI-CD-IAAS.yaml'
+                    }
+                }
+            } else {
+                echo '****** Skipped Virtual Service CI/CD Pipeline Template Publish ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+	stage('VS - Rollback Pipeline Template') {
+        try {
+            if (params.Pipeline == 'VSRollback' || params.Pipeline == 'All') {
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                dir('digital-cicd') {
+                    if (params.TemplateType == 'NodeJSAPIUI' || params.TemplateType == 'NodeJSAPI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/virtualservice/Rollback.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/virtualservice/Rollback.yaml'
+                    }
+                    if (params.TemplateType == 'SpringBootAPIUI' || params.TemplateType == 'SpringBootAPI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/virtualservice/Rollback.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/virtualservice/Rollback.yaml'
+                    }
+                    if (params.TemplateType == 'SpringBootAPIMI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/virtualservice/Rollback-MI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/virtualservice/Rollback-MI.yaml'
+                    }
+                }
+            } else {
+                echo '****** Skipped Virtual Service Rollback Pipeline Template Publish ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Prod Deploy - Pipeline Template') {
+        try {
+            if (params.Pipeline == 'ProdDeploy' || params.Pipeline == 'ProdJobSuspend' || params.Pipeline == 'ProdManualJobRun' || params.Pipeline == 'All') {
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                dir('digital-cicd') {
+                    if (params.TemplateType == 'NodeJSAPIUI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/develop/PROD-CD-API-UI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/develop/PROD-CD-API-UI.yaml'
+                    }
+                    if (params.TemplateType == 'NodeJSAPI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/develop/PROD-CD-API.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/develop/PROD-CD-API.yaml'
+                    }
+                    if (params.TemplateType == 'SpringBootAPIUI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/PROD-CD-API-UI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/PROD-CD-API-UI.yaml'
+                    }
+                    if (params.TemplateType == 'SpringBootAPI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/PROD-CD-API.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/PROD-CD-API.yaml'
+                    }
+                    if (params.TemplateType == 'SpringBootAPIPROBE' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/PROD-CD-API.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/PROD-CD-API-PROBE.yaml'
+                    }
+                    if (params.TemplateType == 'SpringBootAPIMI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/PROD-CD-API-MI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/PROD-CD-API-MI.yaml'
+                    }
+                    if ((params.Pipeline == 'ProdDeploy' || params.Pipeline == 'All') && (params.TemplateType == 'SpringBootBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/PROD-CD-Batch.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/PROD-CD-Batch.yaml'
+                    }
+                    if ((params.Pipeline == 'ProdJobSuspend' || params.Pipeline == 'All') && (params.TemplateType == 'SpringBootBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/PROD-Batch-JobSuspend.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/PROD-Batch-JobSuspend.yaml'
+                    }
+                    if ((params.Pipeline == 'ProdManualJobRun' || params.Pipeline == 'All') && (params.TemplateType == 'SpringBootBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/PROD-Batch-ManualJobRun.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/PROD-Batch-ManualJobRun.yaml'
+                    }
+                    if ((params.Pipeline == 'ProdDeploy' || params.Pipeline == 'All') && (params.TemplateType == 'NodeJSBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/develop/PROD-CD-Batch.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/develop/PROD-CD-Batch.yaml'
+                    }
+                    if ((params.Pipeline == 'ProdJobSuspend' || params.Pipeline == 'All') && (params.TemplateType == 'NodeJSBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/develop/PROD-Batch-JobSuspend.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/develop/PROD-Batch-JobSuspend.yaml'
+                    }
+                    if ((params.Pipeline == 'ProdManualJobRun' || params.Pipeline == 'All') && (params.TemplateType == 'NodeJSBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/develop/PROD-Batch-ManualJobRun.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/develop/PROD-Batch-ManualJobRun.yaml'
+                    }
+                }
+            } else {
+                echo '****** Skipped Prod Deploy Pipeline Template Publish ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('WWW3 Deploy - Pipeline Template') {
+        try {
+            if (params.Pipeline == 'WWW3Deploy' || params.Pipeline == 'WWW3JobSuspend' || params.Pipeline == 'WWW3ManualJobRun' || params.Pipeline == 'All') {
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                dir('digital-cicd') {
+                    if (params.TemplateType == 'NodeJSAPIUI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/develop/WWW3-CD-API-UI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/develop/WWW3-CD-API-UI.yaml'
+                    }
+                    if (params.TemplateType == 'NodeJSAPI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/develop/WWW3-CD-API.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/develop/WWW3-CD-API.yaml'
+                    }
+                    if (params.TemplateType == 'SpringBootAPIUI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/WWW3-CD-API-UI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/WWW3-CD-API-UI.yaml'
+                    }
+                    if (params.TemplateType == 'SpringBootAPI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/WWW3-CD-API.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/WWW3-CD-API.yaml'
+                    }
+                    if (params.TemplateType == 'SpringBootAPIMI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/WWW3-CD-API-MI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/WWW3-CD-API-MI.yaml'
+                    }
+                }
+            } else {
+                echo '****** Skipped WWW3 Deploy Pipeline Template Publish ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Prod EU Deploy - Pipeline Template') {
+        try {
+            if (params.Pipeline == 'ProdEUDeploy' || params.Pipeline == 'ProdEUJobSuspend' || params.Pipeline == 'ProdEUManualJobRun' || params.Pipeline == 'All') {
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                dir('digital-cicd') {
+                    if (params.TemplateType == 'NodeJSAPIUI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/develop/PROD-EU-CD-API-UI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/develop/PROD-EU-CD-API-UI.yaml'
+                    }
+                    if (params.TemplateType == 'NodeJSAPI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/develop/PROD-EU-CD-API.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/develop/PROD-EU-CD-API.yaml'
+                    }
+                    if (params.TemplateType == 'SpringBootAPIUI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/PROD-EU-CD-API-UI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/PROD-EU-CD-API-UI.yaml'
+                    }
+                    if (params.TemplateType == 'SpringBootAPI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/PROD-EU-CD-API.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/PROD-EU-CD-API.yaml'
+                    }
+                     if (params.TemplateType == 'SpringBootAPIPROBE' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/PROD-EU-CD-API-PROBE.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/PROD-EU-CD-API-PROBE.yaml'
+                    }
+                    if (params.TemplateType == 'SpringBootAPIMI' || params.TemplateType == 'All') {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/PROD-EU-CD-API-MI.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/PROD-EU-CD-API-MI.yaml'
+                    }
+                    if ((params.Pipeline == 'ProdEUDeploy' || params.Pipeline == 'All') && (params.TemplateType == 'SpringBootBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/PROD-EU-CD-Batch.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/PROD-EU-CD-Batch.yaml'
+                    }
+                    if ((params.Pipeline == 'ProdEUJobSuspend' || params.Pipeline == 'All') && (params.TemplateType == 'SpringBootBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/PPROD-EU-Batch-JobSuspend.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/PROD-EU-Batch-JobSuspend.yaml'
+                    }
+                    if ((params.Pipeline == 'ProdEUManualJobRun' || params.Pipeline == 'All') && (params.TemplateType == 'SpringBootBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/springboot/develop/PROD-EU-Batch-ManualJobRun.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/springboot/develop/PROD-EU-Batch-ManualJobRun.yaml'
+                    }
+                     if ((params.Pipeline == 'ProdEUDeploy' || params.Pipeline == 'All') && (params.TemplateType == 'NodeJSBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/develop/PROD-EU-CD-Batch.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/develop/PROD-EU-CD-Batch.yaml'
+                    }
+                    if ((params.Pipeline == 'ProdEUJobSuspend' || params.Pipeline == 'All') && (params.TemplateType == 'NodeJSBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/develop/PPROD-EU-Batch-JobSuspend.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/develop/PROD-EU-Batch-JobSuspend.yaml'
+                    }
+                    if ((params.Pipeline == 'ProdEUManualJobRun' || params.Pipeline == 'All') && (params.TemplateType == 'NodeJSBatch' || params.TemplateType == 'All')) {
+                        /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/nodejs/develop/PROD-EU-Batch-ManualJobRun.yaml'*/
+                        sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/develop/PROD-EU-Batch-ManualJobRun.yaml'
+                    }
+                }
+            } else {
+                echo '****** Skipped EU Deploy Pipeline Template Publish ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Functional Test - Pipeline Template') {
+        try {
+            if (params.Pipeline == 'FunctionalTest' || params.Pipeline == 'All') {
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                dir('digital-cicd') {
+                    /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/FunctionalTest.yaml'*/
+                    sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/FunctionalTest.yaml'
+                }
+            } else {
+                echo '****** Skipped Functional Test Pipeline Template Publish ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('UI Perf Test - Pipeline Template') {
+        try {
+            if (params.Pipeline == 'UIPerfTest' || params.Pipeline == 'All') {
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                dir('digital-cicd') {
+                    /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/UIPerfTest.yaml'*/
+                    sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/UIPerfTest.yaml'
+                }
+            } else {
+                echo '****** Skipped UI Perf Test Pipeline Template Publish ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Dam Upload - Pipeline Template') {
+        try {
+            if (params.Pipeline == 'DamuploadQA' || params.Pipeline == 'All') {
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                dir('digital-cicd') {
+                    /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/UIPerfTest.yaml'*/
+                    sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/nodejs/develop/CD-API-UI-DAM.yaml'
+                }
+            } else {
+                echo '****** Skipped UI Perf Test Pipeline Template Publish ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Load Test - Pipeline Template') {
+        try {
+            if (params.Pipeline == 'LoadTest' || params.Pipeline == 'All') {
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                dir('digital-cicd') {
+                    /*sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template plan SpinnakerTemplates/LoadTest.yaml'*/
+                    sh 'SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run ${WORKSPACE}/roer-go/roer-0.11.3/cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline-template publish SpinnakerTemplates/LoadTest.yaml'
+                }
+            } else {
+                echo '****** Skipped Load Test Pipeline Template Publish ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+}
+

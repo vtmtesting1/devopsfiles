@@ -1,0 +1,20 @@
+InstallDynatraceOneagent() {
+	echo -e "\nCleaning up Dynatrace OneAgent..\n"
+
+	for YAML in $(ls ../dynatrace/*.y*ml | sort -r)
+	do
+		echo ${YAML}
+		${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete -f ${YAML}
+	done
+
+	echo -e "\nSleeping for 60 seconds..\n"
+	sleep 60
+
+	echo -e "\nInstalling Dynatrace OneAgent..\n"
+
+	for YAML in $(ls ../dynatrace/*.y*ml | sort)
+	do
+		echo ${YAML}
+		${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" create -f ${YAML}
+	done
+}

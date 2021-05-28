@@ -1,0 +1,155 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: {{ pipelinevars['microserviceName'] }}
+#  namespace: {{ pipelinevars['nameSpace'] }}
+spec:
+  schedule: "{{ pipelinevars['cronschedule'] }}"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 60
+  jobTemplate:
+    metadata:
+      labels: 
+        app: {{ pipelinevars['microserviceName'] }}
+        environment: {{ pipelinevars['env'] }}
+        team: {{ pipelinevars['TeamName'] }}
+        technology: SpringBatch
+    spec:
+      template:
+        metadata:
+          labels: 
+            app: {{ pipelinevars['microserviceName'] }}
+            environment: {{ pipelinevars['env'] }}
+            team: {{ pipelinevars['TeamName'] }}
+            technology: SpringBatch
+        spec:
+          containers:
+          - name: {{ pipelinevars['microserviceName'] }}
+            image: {{ pipelinevars['acr'] }}.azurecr.io/digital/dotcom/{{ pipelinevars['microserviceName'] }}:BuildTag
+            args:
+            - /bin/sh
+            - -c
+            - {{ pipelinevars['args'] }}
+            env:
+            {%- if pipelinevars['envVariables'] %}
+            {%- for envVar in pipelinevars['envVariables'] %}
+            - name: {{ envVar['name'] }}
+              value: {{ envVar['value'] }}
+            {%- endfor %}
+            {%- endif %}
+            {%- for secret in pipelinevars['secrets'] %}
+            {%- for envVars in secret['envVars'] %}
+            - name: {{ envVars }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ secret['name'] }}
+                  key: {{ envVars }}
+                  optional: true
+            {%- endfor %}
+            {%- endfor %}
+            imagePullPolicy: Always
+            lifecycle:
+              postStart:
+                exec:
+                  command:
+                  - sh
+                  - -c
+                  - mkdir -p /usr/local/ecomm/app/podstartup /usr/local/ecomm/app/podshutdown;
+                    cp /deployments/scripts/podstartup/* /usr/local/ecomm/app/podstartup/;
+                    cp /deployments/scripts/podshutdown/* /usr/local/ecomm/app/podshutdown/;
+                    chmod +x /usr/local/ecomm/app/podstartup/*.sh /usr/local/ecomm/app/podshutdown/*.sh;
+                    /usr/local/ecomm/app/podstartup/podstartup.sh
+              preStop:
+                exec:
+                  command:
+                  - sh
+                  - -c
+                  - /usr/local/ecomm/app/podshutdown/podshutdown.sh            
+            resources:
+              limits:
+                cpu: {{ pipelinevars['maxCPU'] }}
+                memory: {{ pipelinevars['maxMemory'] }}
+              requests:
+                cpu: {{ pipelinevars['minCPU'] }}
+                memory: {{ pipelinevars['minMemory'] }}
+            volumeMounts:
+            {%- if pipelinevars['persistentVolumeClaims'] %}
+            {%- for pvc in pipelinevars['persistentVolumeClaims'] %}
+            - mountPath: /deployments/fileshare/{{ pvc['claimName'] }}
+              name: {{ pvc['claimName'] }}
+            {%- endfor %}  
+            {%- endif %}
+            {%- if pipelinevars['ssd'] %}
+            - mountPath: "/deployments/fileshare/batch"
+              name: batch
+            {%- endif %}  
+            {%- for secret in pipelinevars['secrets'] %}
+            - mountPath: "/deployments/secrets/{{ secret['name'] }}"
+              name: {{ secret['name'] }}
+           {%- endfor %}   
+            - mountPath: "/deployments/config"
+              name: {{ pipelinevars['microserviceName'] }}
+            - mountPath: "/deployments/logs"
+              name: applogs
+            - mountPath: /deployments/scripts/podstartup
+              name: podstartup-config
+            - mountPath: /deployments/scripts/podshutdown
+              name: podshutdown-config
+            - mountPath: /deployments/secrets/podstartup-secret
+              name: podstartup-secret      
+          restartPolicy: Never
+          {%- if pipelinevars['nodeSelector'] %}
+          {%- for selector in pipelinevars['nodeSelector'] %}
+          nodeSelector:
+            {{ selector['name'] }}: {{ selector['value'] }}
+          {%- endfor %}
+          {%- endif %}
+          terminationGracePeriodSeconds: 30
+          imagePullSecrets:
+          - name: {{ pipelinevars['imagePullSecrets'] }}
+          volumes:
+          {%- if pipelinevars['persistentVolumeClaims'] %}
+          {%- for pvc in pipelinevars['persistentVolumeClaims'] %}
+          - name: {{ pvc['claimName'] }}
+            persistentVolumeClaim:
+              claimName: {{ pvc['claimName'] }}
+          {%- endfor %}
+          {%- endif %}
+          {%- if pipelinevars['ssd'] %}
+          - name: batch
+            hostPath:
+              path: "/appdata/disk2/files"
+              type: ''
+          {%- endif %}
+          {%- for secret in pipelinevars['secrets'] %}
+          - name: {{ secret['name'] }}
+            secret:
+              secretName: {{ secret['name'] }}
+              defaultMode: 420
+          {%- endfor %}
+          - name: {{ pipelinevars['microserviceName'] }}
+            configMap:
+              name: {{ pipelinevars['microserviceName'] }}-config
+              defaultMode: 420
+          - name: applogs
+            hostPath:
+              path: "/appdata/disk1/logs"
+              type: ''
+          - name: podstartup-config
+            configMap:
+              name: podstartup-config
+              defaultMode: 420
+          - name: podshutdown-config
+            configMap:
+              name: podshutdown-config
+              defaultMode: 420
+          - name: podstartup-secret
+            secret:
+              secretName: podstartup-secret
+              defaultMode: 420
+      backoffLimit: 2
+      parallelism: {{ pipelinevars['parallelReplicas'] }} 
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+
+

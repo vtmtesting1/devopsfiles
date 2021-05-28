@@ -1,0 +1,68 @@
+schema: "1"
+id: SpringBatchFeatureCDTemplateV1
+metadata:
+  name: Spring Batch CD Template - Feature Branch
+  description: Spring Batch Continuous Delivery Pipeline Template - Feature Branch
+  owner: digital-ms-devops@walgreens.com
+  scopes: [global]
+variables:
+- name: microserviceName
+  description: Name of the Microservice
+- name: TeamName
+  description: Enter Your Team Name
+  example: Devops
+  defaultValue: Devops  
+- name: TeamDL
+  description: Enter Your Team DL
+  example: ecomscm@walgreens.com
+configuration:
+  concurrentExecutions:
+    limitConcurrent: true
+    parallel: false
+  triggers:
+  - account: nonprodregistry
+    enabled: true
+    name: unnamed0
+    organization: digital/dotcom
+    registry: nonprodregistry.azurecr.io
+    repository: digital/dotcom/{{ microserviceName }}
+    runAsUser: spinnaker-svc-account
+    status:
+    - successful
+    tag: ".*"
+    type: docker
+  parameters: []
+  notifications: []
+  description: ""
+stages:
+- id: configureDev
+  type: jenkins
+  name: Configure DEV
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-configmap-dev-feature"
+    master: intops-jenkins
+    parameters: {}
+- id: deployToDev
+  type: jenkins
+  name: Deploy to DEV
+  dependsOn:
+  - configureDev
+  config:
+    notifications:
+    - address: "{{ TeamDL }}"
+      level: stage
+      type: email
+      when:
+      - stage.failed
+    sendNotifications: true
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-deploy-dev-feature"
+    master: intops-jenkins
+    parameters: {
+    "buildnumber": "${trigger['tag']}"
+    }
+
+

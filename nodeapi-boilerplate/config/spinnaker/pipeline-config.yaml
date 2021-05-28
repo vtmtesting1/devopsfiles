@@ -1,0 +1,36 @@
+schema: "1"
+pipeline:
+  application: nodeapiboilerplate
+  name: nodeapiboilerplate-feature-build
+  template:
+    source: spinnaker://BuildTemplateFeatureV1
+  variables:
+    microserviceName: nodeapiboilerplate
+    minCPU: 0.1
+    maxCPU: 2
+    minMemory: 512Mi
+    maxMemory: 2048Mi
+    minNumberOfReplicas: 1
+    maxNumberOfReplicas: 2
+    cpuUtilizationTargetForAutoScaling: 60
+    livelinessURL: nodeapiboilerplate/v1/health
+    TeamDL: teamDL@walgreens.com
+    args: npm run start
+    secrets:
+    - name: team-backend-instance-1
+      envVars:
+      - backend_username
+      - backend_password    
+    configMaps:
+    - name: nodeapiboilerplate-config
+      subPath: app
+    envVariables:
+    - name: ENV_CONFIG_FILE_PATH
+      value: /deployments/config
+configuration:
+  inherit:
+  - triggers
+  - expectedArtifacts
+  - stages
+  - parameters
+

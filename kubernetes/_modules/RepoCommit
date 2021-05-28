@@ -1,0 +1,10 @@
+RepoCommit() {
+	echo -e "\nCommitting changes to the Stash Repo.."
+	git add ${TEMPLATE_PREFIX}-${CLUSTER_NAME}.json
+	git add ${TEMPLATE_PREFIX}-tags-${CLUSTER_NAME}.values
+	git add ${CLUSTER_NAME}-ssh-key.*
+	git add _output/${CLUSTER_NAME}*
+	git add translations/
+	git commit -m "`basename $0` - Artifacts for ${CLUSTER_NAME} ACS cluster deployment"
+	git push origin master
+}

@@ -1,0 +1,28 @@
+  schema: "1"
+  pipeline:
+    application: springbootuiboilerplate
+    name: springbootuiboilerplate-feature-build
+    template:
+      source: spinnaker://BuildTemplateFeatureV1
+    variables:
+      microserviceName: springbootuiboilerplate
+      minCPU: 1
+      maxCPU: 2
+      minMemory: 1024Mi
+      maxMemory: 2048Mi
+      minNumberOfReplicas: 1
+      maxNumberOfReplicas: 2
+      cpuUtilizationTargetForAutoScaling: 60
+      livelinessURL: /springbootuiboilerplate/health
+      TeamName: dpf
+      TeamDL: teamDL@walgreens.com
+      args: java -jar /usr/local/ecomm/app/springbootuiboilerplate.jar --spring.config.additional-location=/deployments/config/config.yaml,/deployments/config/bootstrap.yaml
+      secretEnvVariables: 
+      - ENV_REDIS_SERVER_PASSWORD
+      - ENV_REDIS_SERVER_USER
+  configuration:
+    inherit:
+    - triggers
+    - expectedArtifacts
+    - stages
+    - parameters

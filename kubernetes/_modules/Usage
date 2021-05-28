@@ -1,0 +1,17 @@
+Usage() {
+	echo -e "\nUsage:"
+	echo -e "	$0 [OPTIONS]\n"
+	echo -e "\t--install-addons=<Cluster Name>\t\t\tInstalls only the tools on an existing ACS cluster"
+	echo -e "\t--apply-config=<Cluster Name>\t\t\tApplies only the Standard Configuration on the ACS cluster"
+	echo -e "\t--reinstall-istio=<Cluster Name>\t\tRe-installs Istio Controller on the ACS cluster"
+	echo -e "\t--reinstall-nginx=<Cluster Name>\t\tRe-installs Nginx Controller and Developer Dashboard on the ACS cluster"
+	echo -e "\t--reinstall-dtoneagent=<Cluster Name>\t\tRe-installs Dynatrace OneAgent on the ACS cluster"
+	echo -e "\t--reinstall-autoscaler=<Cluster Name>\t\tRe-installs Cluster Autoscaler on the ACS cluster"
+	echo -e "\t--reinstall-kube-prometheus=<Cluster Name>\tRe-installs Grafana/Prometheus/AlterManager on the ACS cluster"
+	echo -e "\t--upgrade-twistlock=<Cluster Name>\t\tInstalls/Re-installs Twistlock Defenders on the ACS cluster"
+	echo -e "\t--fix-dns=<Cluster Name>\t\t\tFixes DNS issue on the ACS cluster"
+	echo -e "\t--fix-heapster=<Cluster Name>\t\t\tFixes Heapster issue on the ACS cluster"
+	echo -e "\t--fix-admingroup=<Cluster Name>\t\t\tFixes the AAD Admin Group ClusterRoleBinding on the ACS cluster"
+	echo -e "\t--help, -h\t\t\t\t\tDisplay this help message."
+	echo
+}

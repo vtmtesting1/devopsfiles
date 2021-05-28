@@ -1,0 +1,42 @@
+schema: "1"
+id: LoadTestTemplateV1
+metadata:
+  name: Load Test Template
+  description: Load Test Pipeline Template
+  owner: digital-ms-devops@walgreens.com
+  scopes:
+  - global
+variables:
+- name: microserviceName
+  description: Name of the Microservice
+- name: TeamDL
+  description: Enter Your Team DL
+  example: ecomscm@walgreens.com
+configuration:
+  concurrentExecutions:
+    limitConcurrent: true
+    parallel: false
+  triggers: []
+  parameters: []
+  notifications: []
+  description: ""
+stages:
+- id: LoadTest
+  type: jenkins
+  name: Load Test
+  config:
+    continuePipeline: false
+    failPipeline: true
+    job: "{{ microserviceName }}/job/{{ microserviceName }}-load-test"
+    master: intopsprd-jenkins
+    notifications:
+    - address: "{{ TeamDL }}"
+      level: stage
+      type: email
+      when:
+      - stage.failed
+    sendNotifications: true
+    parameters: {}
+partials: []
+modules: []
+

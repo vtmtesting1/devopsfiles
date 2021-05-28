@@ -1,0 +1,4 @@
+AzureLogout() {
+	echo -e "\nLogging out from Azure..\n"
+	${AZ} logout
+}

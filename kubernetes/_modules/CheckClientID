@@ -1,0 +1,18 @@
+CheckClientID() {
+	_OUTPUT=`${AZ} ad sp list --display-name "${SERVICE_PRINCIPAL}" --query '[0].{AppId:appId,ObjId:objectId}' -o tsv`
+	_CLIENT_ID=`echo ${_OUTPUT} | awk '{ print $1 }'`
+	_OBJECT_ID=`echo ${_OUTPUT} | awk '{ print $2 }'`
+
+	if [ "${_CLIENT_ID}" == "" ]; then
+		echo -e "\nERROR: Invalid Service Principal. Aborting!!!\n"
+		exit 87
+	fi
+
+	if [ "${_OBJECT_ID}" == "" ]; then
+		echo -e "\nERROR: Invalid Object ID for Service Principal. Aborting!!!\n"
+		exit 87
+	fi
+
+	echo -e "\nApp ID for '${SERVICE_PRINCIPAL}' is '${_CLIENT_ID}'"
+	echo -e "\nObject ID for '${SERVICE_PRINCIPAL}' is '${_OBJECT_ID}'"
+}

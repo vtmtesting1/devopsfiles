@@ -1,0 +1,48 @@
+- hosts: localhost
+  connection: local
+  gather_facts: yes
+  roles:
+  - kwoodson.yedit
+  vars:
+     git_dir: /root/git5/
+     git_url: https://prasadu.babu:HsGD7gpTF8c3yjtgKtyx@git.dhcpaas.com/helm-deployment/guest-helm.git
+
+  vars_prompt:
+    - name: AdminAPI_version
+      prompt: enter the version of the Admin API module
+      private: no
+      default: 1.0.0.24
+
+  tasks:
+     - name: pulling code from gitlab
+       git:
+          repo: '{{git_url}}'
+          dest: '{{git_dir}}'
+          clone: yes
+          update: yes
+          version: master
+     
+     - name: shell script
+       shell: | 
+          ARTIFACT='{{ AdminAPI_version }}'
+          VERSION=$(echo $ARTIFACT | awk '{split($0, a, "."); print a[4]}')
+          echo $VERSION
+       register: tag_number
+     
+     - name: updating yaml file
+       yedit:
+          src: '{{git_dir}}'/mycare2/qa_configuration_values.yaml
+          key: apiadmin
+          value:
+             image:
+                 tag:  '{{ tag_number.stdout }}_developer'
+     
+     - name: pushing changes to gitlab
+       shell: |
+           cd '{{git_dir}}'
+           git add .
+           git commit -m "commit message"
+           git push '{{git_url}}'
+==============================================================
+
+git_url: https://prasadu.babu:HsGD7gpTF8c3yjtgKtyx@git.dhcpaas.com/helm-deployment/guest-helm.git

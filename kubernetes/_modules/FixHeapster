@@ -1,0 +1,59 @@
+FixHeapster() {
+	SCP_COMMAND="scp -o StrictHostKeyChecking=no -i ${HOME}/.ssh/${CLUSTER_NAME}-ssh-key -q"
+	SSH_COMMAND="ssh -i ${HOME}/.ssh/${CLUSTER_NAME}-ssh-key -q"
+
+	echo -e "\nApplying fix for Heapster.."
+
+	if [[ -z "${STARTING_IP}" ]]; then
+		STARTING_IP=$(cat ${TEMPLATE_PREFIX}-${CLUSTER_NAME}.json | grep firstConsecutiveStaticIP | awk -F: '{ print $2 }' | tr -dc '[0-9.]\n\r')
+		echo -e "\nPrimary Master Server IP is '${STARTING_IP}'"
+	fi
+
+	if [[ -z "${ADMIN_ACCOUNT}" ]]; then
+		ADMIN_ACCOUNT=$(cat ${TEMPLATE_PREFIX}-${CLUSTER_NAME}.json | grep adminUsername | awk -F: '{ print $2 }' | tr -dc '[:alnum:]\n\r')
+		echo -e "\nLinux login name is '${ADMIN_ACCOUNT}'"
+	fi
+
+	FIRST_OCTETS=$(echo $STARTING_IP | awk -F'.' 'BEGIN{OFS=".";} { print $1,$2,$3} ')
+	LAST_OCTECT=$(echo $STARTING_IP | awk -F'.' '{ print $4} ')
+
+
+	for i in $(seq 0 2); do
+		IP=$((LAST_OCTECT+$i))
+		DESTINATION_IP=$FIRST_OCTETS.$IP
+		echo -e "\nRunning Heapster and Metrics fix for Master IP '$DESTINATION_IP'"
+		ssh-keygen -R "${DESTINATION_IP}" -q > /dev/null 2>&1
+		${SCP_COMMAND} fix/metrics/kube-heapster-deployment.yaml.template ${ADMIN_ACCOUNT}\@${DESTINATION_IP}:~/kube-heapster-deployment.yaml.template
+		${SCP_COMMAND} fix/metrics/kube-metrics-server-deployment.yaml.template ${ADMIN_ACCOUNT}\@${DESTINATION_IP}:~/kube-metrics-server-deployment.yaml.template
+		${SCP_COMMAND} fix/metrics/heapster-metrics-fix.sh ${ADMIN_ACCOUNT}\@${DESTINATION_IP}:~/heapster-metrics-fix.sh
+
+		${SSH_COMMAND} ${ADMIN_ACCOUNT}\@${DESTINATION_IP} "chmod +x ~/heapster-metrics-fix.sh"
+		${SSH_COMMAND} ${ADMIN_ACCOUNT}\@${DESTINATION_IP} "./heapster-metrics-fix.sh"
+	done
+
+	echo -e "\nDeleting Heapster resources to force redeployment.."
+
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" -n kube-system delete deployment heapster
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" -n kube-system delete svc heapster
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" -n kube-system delete configmap heapster-config
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete clusterrolebinding system:heapster-with-nanny
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete clusterrole system:heapster-with-nanny
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" -n kube-system delete sa heapster
+
+	echo -e "\nSleeping for 60 seconds for Heapster redeployment to finish..\n"
+	sleep 60
+
+	echo -e "\nDeleting Metrics resources to force redeployment.."
+
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete APIService v1beta1.metrics.k8s.io
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" -n kube-system delete deployment metrics-server
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" -n kube-system delete svc metrics-server
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete clusterrolebinding metrics-server:system:auth-delegator
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete clusterrole metrics-server-auth-reader
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete clusterrolebinding system:metrics-server
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete clusterrole system:metrics-server
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" -n kube-system delete sa metrics-server
+
+	echo -e "\nSleeping for 60 seconds for Metrics redeployment to finish..\n"
+	sleep 60
+}

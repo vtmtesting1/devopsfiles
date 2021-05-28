@@ -1,0 +1,227 @@
+InstallIstioController() {
+
+	SyncRepo
+
+	echo -e "\nRemoving Istio Controller..\n"
+
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete -f ../istio/1.4.5/11-istio-ingressgateway-accesslog-envoyfilter.yaml
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete -f ../istio/1.4.5/10-envoy-filter.yaml
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete -f ../istio/1.4.5/09-rbac-operations-adv-power.yaml
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete -f ../istio/1.4.5/08-rbac-devops.yaml
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete -f ../istio/1.4.5/05-istio-citadel.yaml
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" -n istio-system delete secret cacerts
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete -f ../istio/1.4.5/06-gateway-dotcom-app.yaml
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete -f ../istio/1.4.5/07-gateway-dotcom-csc.yaml
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete -f ../istio/1.4.5/04-istio-prometheus.yaml
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete -f ../istio/1.4.5/03-istio-telemetry.yaml
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" label namespace ${SPINNAKER_NAMESPACE} istio-injection-
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" label namespace dotcom-csc istio-injection-
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" -n istio-system delete secret istio-ingressgateway-ca-certs
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" -n istio-system delete secret istio-ingressgateway-certs
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" -n istio-system delete secret istio-ingressgateway-certs-csc
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete -f ../istio/1.4.5/02-istio-default-profile.yaml
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete -f ../istio/1.4.5/01-crds.yaml
+
+	echo -e "\nCleaning up obsolete Istio Secrets..\n"
+
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" get secret --all-namespaces | grep "istio.io/key-and-cert" |  while read -r entry; do
+		ns=$(echo $entry | awk '{print $1}');
+		name=$(echo $entry | awk '{print $2}');
+		${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" delete secret $name -n $ns;
+	done
+
+	echo -e "\nSleeping for 120 seconds..\n"
+	sleep 120
+
+	echo -e "\nInstalling Istio Controller..\n"
+
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" apply -f ../istio/1.4.5/01-crds.yaml
+	cat ../istio/1.4.5/02-istio-default-profile.yaml.template | sed "s/INGRESS_SERVICE_IP/${INGRESS_SERVICE_IP}/g" > ../istio/1.4.5/02-istio-default-profile.yaml
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" apply -f ../istio/1.4.5/02-istio-default-profile.yaml
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" label namespace ${SPINNAKER_NAMESPACE} istio-injection=enabled
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" label namespace dotcom-csc istio-injection=enabled
+
+    echo -e "\n"
+
+	_INSTALL_TELEMETRY=""
+	while [ "${_INSTALL_TELEMETRY}" != "y" ] && [ "${_INSTALL_TELEMETRY}" != "n" ]
+	do
+		echo -e "Do you want to install mixer for telemetry? \c"
+		read _INSTALL_TELEMETRY
+		_INSTALL_TELEMETRY=`echo ${_INSTALL_TELEMETRY} | tr -dc '[:alnum:]\n\r' | tr '[:upper:]' '[:lower:]'`
+	done
+
+	if [ "${_INSTALL_TELEMETRY}" == "y" ]; then
+		echo -e "Installing Telemetry component mixer now..\n"
+		${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" apply -f ../istio/1.4.5/03-istio-telemetry.yaml
+	else
+		echo -e "Proceeding Istio installation without Telemetry..\n"
+	fi
+
+
+	_INSTALL_PROMETHEUS=""
+	while [ "${_INSTALL_PROMETHEUS}" != "y" ] && [ "${_INSTALL_PROMETHEUS}" != "n" ]
+	do
+		echo -e "Do you want to install Prometheus? \c"
+		read _INSTALL_PROMETHEUS
+		_INSTALL_PROMETHEUS=`echo ${_INSTALL_PROMETHEUS} | tr -dc '[:alnum:]\n\r' | tr '[:upper:]' '[:lower:]'`
+	done
+
+	if [ "${_INSTALL_PROMETHEUS}" == "y" ]; then
+		echo -e "Installing Telemetry components Prometheus and Grafana now..\n"
+		${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" apply -f ../istio/1.4.5/04-istio-prometheus.yaml
+	else
+		echo -e "Proceeding Istio installation without Prometheus..\n"
+	fi
+
+
+
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" create -f ../istio/1.4.5/06-gateway-dotcom-app.yaml
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" create -f ../istio/1.4.5/07-gateway-dotcom-csc.yaml
+
+	echo -e "\n"
+
+	_RESPONSE=""
+	while [ "${_RESPONSE}" != "y" ] && [ "${_RESPONSE}" != "n" ]
+	do
+		echo -e "Do you have access to Hashicorp Vault to access private keys (y/n)? \c"
+		read _RESPONSE
+		_RESPONSE=`echo ${_RESPONSE} | tr -dc '[:alnum:]\n\r' | tr '[:upper:]' '[:lower:]'`
+	done
+
+	if [ "${_RESPONSE}" == "y" ]; then
+		while [[ -z "${_VAULT_USER_LOGIN}" ]]
+		do
+			echo -e "Enter the Vault User Login (${VAULT_API_URL}): \c"
+			read _VAULT_USER_LOGIN
+		done
+
+		while [[ -z "${_VAULT_USER_PASSWORD}" ]]
+		do
+			echo -e "Enter the Vault User Password (${VAULT_API_URL}) (Hidden): \c"
+			read -s _VAULT_USER_PASSWORD
+			echo -e "\n"
+		done
+
+
+
+		_VAULT_USER_TOKEN="72a215b2-c45e-7112-db26-190043aaeb6b"
+
+
+
+		if [ "${_VAULT_USER_TOKEN}" == "null" ]; then
+			echo -e "Could not get the Secret Token for Vault User ID '${_VAULT_USER_LOGIN}'\n"
+			echo -e "1. Please create 'cacerts' Secret with this command (run from `pwd`) once /tmp/wag-ca-key.pem is available\n"
+			echo -e "${KUBECTL} --kubeconfig=${HOME}/${CLUSTER_NAME}-kubeconfig -n istio-system create secret generic cacerts --from-file=../istio/1.4.5/wagcerts/wag-ca-cert.pem --from-file=/tmp/wag-ca-key.pem --from-file=../istio/1.4.5/wagcerts/wag-root-cert.pem --from-file=../istio/1.4.5/wagcerts/wag-cert-chain.pem\n"
+			echo -e "2. Please create 'istio-ingressgateway-certs' Secret with this command (run from `pwd`) once /tmp/${INGRESS_CERT_KEY} is available\n"
+			echo -e "${KUBECTL} --kubeconfig=${HOME}/${CLUSTER_NAME}-kubeconfig -n istio-system create secret tls istio-ingressgateway-certs --key /tmp/${INGRESS_CERT_KEY} --cert ../istio/1.4.5/wagcerts/${INGRESS_CERT_FILE}\n"
+			echo -e "3. Please create 'istio-ingressgateway-certs-csc' Secret with this command (run from `pwd`) once /tmp/${INGRESS_CSC_CERT_KEY} is available\n"
+			echo -e "${KUBECTL} --kubeconfig=${HOME}/${CLUSTER_NAME}-kubeconfig -n istio-system create secret tls istio-ingressgateway-certs-csc --key /tmp/${INGRESS_CSC_CERT_KEY} --cert ../istio/1.4.5/wagcerts/${INGRESS_CSC_CERT_FILE}\n"
+		else
+			_PRIVATE_KEY_CITADEL=`curl -s -XGET -H "X-Vault-Token: ${_VAULT_USER_TOKEN}" "${VAULT_API_URL}/secret/${VAULT_SECRET_KEY_CITADEL}" | jq '.data.wag_ca_key' | tr -d '"'`
+
+			if [ "${_PRIVATE_KEY_CITADEL}" == "null" ]; then
+				echo -e "Could not get the Private Key using URL '${VAULT_API_URL}/secret/${VAULT_SECRET_KEY_CITADEL}' and JSONPath 'data.wag_ca_key'\n"
+				echo -e "\tPlease create 'cacerts' Secret with this command (run from `pwd`) once /tmp/wag-ca-key.pem is available\n"
+				echo -e "\t${KUBECTL} --kubeconfig=${HOME}/${CLUSTER_NAME}-kubeconfig -n istio-system create secret generic cacerts --from-file=../istio/1.4.5/wagcerts/wag-ca-cert.pem --from-file=/tmp/wag-ca-key.pem --from-file=../istio/1.4.5/wagcerts/wag-root-cert.pem --from-file=../istio/1.4.5/wagcerts/wag-cert-chain.pem\n"
+			else
+				echo -e ${_PRIVATE_KEY_CITADEL} > /tmp/wag-ca-key.pem
+				echo -e "\nCreated /tmp/wag-ca-key.pem. Creating cacerts Secret now..\n"
+				${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" -n istio-system create secret generic cacerts --from-file=../istio/1.4.5/wagcerts/wag-ca-cert.pem --from-file=/tmp/wag-ca-key.pem --from-file=../istio/1.4.5/wagcerts/wag-root-cert.pem --from-file=../istio/1.4.5/wagcerts/wag-cert-chain.pem
+				rm -f /tmp/wag-ca-key.pem
+			fi
+
+			_PRIVATE_KEY_INGRESS=`curl -s -XGET -H "X-Vault-Token: ${_VAULT_USER_TOKEN}" "${VAULT_API_URL}/secret/${VAULT_SECRET_KEY_INGRESS}" | jq ".data.${VAULT_SECRET_KEY_INGRESS_JSONPATH}" | tr -d '"'`
+
+			if [ "${_PRIVATE_KEY_INGRESS}" == "null" ]; then
+				echo -e "Could not get the Private Key using URL '${VAULT_API_URL}/secret/${VAULT_SECRET_KEY_INGRESS}' and JSONPath 'data.${VAULT_SECRET_KEY_INGRESS_JSONPATH}'\n"
+				echo -e "\tPlease create 'istio-ingressgateway-certs' Secret with this command (run from `pwd`) once /tmp/${INGRESS_CERT_KEY} is available\n"
+				echo -e "\t${KUBECTL} --kubeconfig=${HOME}/${CLUSTER_NAME}-kubeconfig -n istio-system create secret tls istio-ingressgateway-certs --key /tmp/${INGRESS_CERT_KEY} --cert ../istio/1.4.5/wagcerts/${INGRESS_CERT_FILE}\n"
+			else
+				echo -e ${_PRIVATE_KEY_INGRESS} > /tmp/${INGRESS_CERT_KEY}
+				echo -e "\nCreated /tmp/${INGRESS_CERT_KEY}. Creating 'istio-ingressgateway-certs' Secret now..\n"
+				${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" -n istio-system create secret tls istio-ingressgateway-certs --key /tmp/${INGRESS_CERT_KEY} --cert ../istio/1.4.5/wagcerts/${INGRESS_CERT_FILE}
+				rm -f /tmp/${INGRESS_CERT_KEY}
+			fi
+
+			_PRIVATE_KEY_INGRESS_CSC=`curl -s -XGET -H "X-Vault-Token: ${_VAULT_USER_TOKEN}" "${VAULT_API_URL}/secret/${VAULT_SECRET_KEY_INGRESS_CSC}" | jq ".data.${VAULT_SECRET_KEY_INGRESS_CSC_JSONPATH}" | tr -d '"'`
+
+			if [ "${_PRIVATE_KEY_INGRESS_CSC}" == "null" ]; then
+				echo -e "Could not get the Private Key using URL '${VAULT_API_URL}/secret/${VAULT_SECRET_KEY_INGRESS_CSC}' and JSONPath 'data.${VAULT_SECRET_KEY_INGRESS_CSC_JSONPATH}'\n"
+				echo -e "\tPlease create 'istio-ingressgateway-certs-csc' Secret with this command (run from `pwd`) once /tmp/${INGRESS_CSC_CERT_KEY} is available\n"
+				echo -e "\t${KUBECTL} --kubeconfig=${HOME}/${CLUSTER_NAME}-kubeconfig -n istio-system create secret tls istio-ingressgateway-certs-csc --key /tmp/${INGRESS_CSC_CERT_KEY} --cert ../istio/1.4.5/wagcerts/${INGRESS_CSC_CERT_FILE}\n"
+			else
+				echo -e ${_PRIVATE_KEY_INGRESS_CSC} > /tmp/${INGRESS_CSC_CERT_KEY}
+				echo -e "\nCreated /tmp/${INGRESS_CSC_CERT_KEY}. Creating 'istio-ingressgateway-certs-csc' Secret now..\n"
+				${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" -n istio-system create secret tls istio-ingressgateway-certs-csc --key /tmp/${INGRESS_CSC_CERT_KEY} --cert ../istio/1.4.5/wagcerts/${INGRESS_CSC_CERT_FILE}
+				rm -f /tmp/${INGRESS_CSC_CERT_KEY}
+			fi
+
+			
+			export _VAULT_USER_LOGIN=""
+			export _VAULT_USER_PASSWORD=""
+			export _VAULT_USER_TOKEN=""
+			export _PRIVATE_KEY_CITADEL=""
+			export _PRIVATE_KEY_INGRESS=""
+		fi
+	else
+		echo -e "1. Please get the Istio CA/Citadel Issuing CA private key PEM file and copy to /tmp/wag-ca-key.pem"
+		echo -e "2. Please get the Istio Ingress URL SSL certificate private key PEM file and copy to /tmp/${INGRESS_CERT_KEY}"
+		echo -e "3. Please get the Istio Ingress CSC URL SSL certificate private key PEM file and copy to /tmp/${INGRESS_CSC_CERT_KEY}"
+		echo -e "4. *** Press ENTER when you have copied both the files ***"
+		read _RESPONSE
+
+		if [ -f /tmp/wag-ca-key.pem ]; then
+			echo -e "Found /tmp/wag-ca-key.pem. Creating 'cacerts' Secret now..\n"
+			${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" -n istio-system create secret generic cacerts --from-file=../istio/1.4.5/wagcerts/wag-ca-cert.pem --from-file=/tmp/wag-ca-key.pem --from-file=../istio/1.4.5/wagcerts/wag-root-cert.pem --from-file=../istio/1.4.5/wagcerts/wag-cert-chain.pem
+			rm -f /tmp/wag-ca-key.pem
+		else
+			echo -e "*** Could not find /tmp/wag-ca-key.pem\n"
+			echo -e "\tPlease create 'cacerts' Secret with this command (run from `pwd`) once /tmp/wag-ca-key.pem is available\n"
+			echo -e "\t${KUBECTL} --kubeconfig=${HOME}/${CLUSTER_NAME}-kubeconfig -n istio-system create secret generic cacerts --from-file=../istio/1.4.5/wagcerts/wag-ca-cert.pem --from-file=/tmp/wag-ca-key.pem --from-file=../istio/1.4.5/wagcerts/wag-root-cert.pem --from-file=../istio/1.4.5/wagcerts/wag-cert-chain.pem\n"
+		fi
+
+		if [ -f /tmp/${INGRESS_CERT_KEY} ]; then
+			echo -e "Found /tmp/${INGRESS_CERT_KEY}. Creating 'istio-ingressgateway-certs' Secret now..\n"
+			echo "${KUBECTL} --kubeconfig=${HOME}/${CLUSTER_NAME}-kubeconfig -n istio-system create secret tls istio-ingressgateway-certs --key /tmp/${INGRESS_CERT_KEY} --cert ../istio/1.4.5/wagcerts/${INGRESS_CERT_FILE}"
+			${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" -n istio-system create secret tls istio-ingressgateway-certs --key /tmp/${INGRESS_CERT_KEY} --cert ../istio/1.4.5/wagcerts/${INGRESS_CERT_FILE}
+			rm -f /tmp/${INGRESS_CERT_KEY}
+		else
+			echo -e "*** Could not find /tmp/${INGRESS_CERT_KEY}\n"
+			echo -e "\tPlease create 'istio-ingressgateway-certs' Secret with this command (run from `pwd`) once /tmp/${INGRESS_CERT_KEY} is available\n"
+			echo -e "\t${KUBECTL} --kubeconfig=${HOME}/${CLUSTER_NAME}-kubeconfig -n istio-system create secret tls istio-ingressgateway-certs --key /tmp/${INGRESS_CERT_KEY} --cert ../istio/1.4.5/wagcerts/${INGRESS_CERT_FILE}\n"
+		fi
+
+		if [ -f /tmp/${INGRESS_CSC_CERT_KEY} ]; then
+			echo -e "Found /tmp/${INGRESS_CSC_CERT_KEY}. Creating 'istio-ingressgateway-certs-csc' Secret now..\n"
+			echo "${KUBECTL} --kubeconfig=${HOME}/${CLUSTER_NAME}-kubeconfig -n istio-system create secret tls istio-ingressgateway-certs-csc --key /tmp/${INGRESS_CSC_CERT_KEY} --cert ../istio/1.4.5/wagcerts/${INGRESS_CSC_CERT_FILE}"
+			${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" -n istio-system create secret tls istio-ingressgateway-certs-csc --key /tmp/${INGRESS_CSC_CERT_KEY} --cert ../istio/1.4.5/wagcerts/${INGRESS_CSC_CERT_FILE}
+			rm -f /tmp/${INGRESS_CSC_CERT_KEY}
+		else
+			echo -e "*** Could not find /tmp/${INGRESS_CSC_CERT_KEY}\n"
+			echo -e "\tPlease create 'istio-ingressgateway-certs-csc' Secret with this command (run from `pwd`) once /tmp/${INGRESS_CSC_CERT_KEY} is available\n"
+			echo -e "\t${KUBECTL} --kubeconfig=${HOME}/${CLUSTER_NAME}-kubeconfig -n istio-system create secret tls istio-ingressgateway-certs-csc --key /tmp/${INGRESS_CSC_CERT_KEY} --cert ../istio/1.4.5/wagcerts/${INGRESS_CSC_CERT_FILE}\n"
+		fi
+	fi
+
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" apply -f ../istio/1.4.5/05-istio-citadel.yaml
+
+	echo -e "\nSleeping for 30 seconds before deleting the old istio.default secret..\n"
+	sleep 30
+
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" -n ${SPINNAKER_NAMESPACE} delete secret istio.default
+
+	# Delete the Pods manually using the same command to force re-inject new certs
+	# ${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" -n ${SPINNAKER_NAMESPACE} delete --all pods
+
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" apply -f ../istio/1.4.5/08-rbac-devops.yaml
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" apply -f ../istio/1.4.5/09-rbac-operations-adv-power.yaml
+
+	echo -e "\nAdding envoy filters for response header and ingressgateway logs"
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" apply -f ../istio/1.4.5/10-envoy-filter.yaml
+	${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" apply -f ../istio/1.4.5/11-istio-ingressgateway-accesslog-envoyfilter.yaml
+
+	git add ../istio/1.4.5/02-istio-default-profile.yaml
+	git commit -m "`basename $0` - Updated Istio installation YAML file generated by setup script"
+	git push
+}

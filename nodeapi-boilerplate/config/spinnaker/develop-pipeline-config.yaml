@@ -1,0 +1,71 @@
+schema: "1"
+pipeline:
+  application: nodeapiboilerplate
+  name: nodeapiboilerplate-build
+  pipelineConfigId: nodeapiboilerplate-build
+  template:
+    source: spinnaker://BuildTemplateDevelopV1
+  variables:
+    microserviceName: nodeapiboilerplate
+    repoName: node-api-boilerplate
+    TeamDL: teamDL@walgreens.com
+    # QA Properties
+    minCPUQA: 0.5
+    maxCPUQA: 1
+    minMemoryQA: 512Mi
+    maxMemoryQA: 2048Mi
+    minNumberOfReplicasQA: 2
+    maxNumberOfReplicasQA: 4
+    cpuUtilizationTargetForAutoScalingQA: 60
+    argsQA: npm run start
+    # WWW3 Properties
+    minCPUWWW3: 0.5
+    maxCPUWWW3: 1
+    minMemoryWWW3: 512Mi
+    maxMemoryWWW3: 2048Mi
+    minNumberOfReplicasWWW3: 2
+    maxNumberOfReplicasWWW3: 4
+    cpuUtilizationTargetForAutoScalingWWW3: 60
+    argsWWW3: npm run start
+    # Prod Properties
+    minCPUProd: 0.5
+    maxCPUProd: 1
+    minMemoryProd: 512Mi
+    maxMemoryProd: 2048Mi
+    minNumberOfReplicasProd: 2
+    maxNumberOfReplicasProd: 4
+    cpuUtilizationTargetForAutoScalingProd: 60
+    argsProd: npm run start
+    # VS Properties
+    minCPUVS: 0.5
+    maxCPUVS: 1
+    minMemoryVS: 512Mi
+    maxMemoryVS: 2048Mi
+    minNumberOfReplicasVS: 2
+    maxNumberOfReplicasVS: 4
+    cpuUtilizationTargetForAutoScalingVS: 60
+    argsVS: npm run start-vs
+    # ProdEU Properties
+    minCPUProdEU: 0.5
+    maxCPUProdEU: 1
+    minMemoryProdEU: 512Mi
+    maxMemoryProdEU: 2048Mi
+    minNumberOfReplicasProdEU: 2
+    maxNumberOfReplicasProdEU: 4
+    cpuUtilizationTargetForAutoScalingProdEU: 60
+    argsProdEU: npm run start
+    # Application Properties
+    livelinessURL: nodeapiboilerplate/v1/health
+    configMaps:
+    - name: nodeapiboilerplate-config
+      subPath: app
+    envVariables:
+    - name: ENV_CONFIG_FILE_PATH
+      value: /deployments/config
+configuration:
+  inherit:
+  - triggers
+  - expectedArtifacts
+  - stages
+  - parameters
+

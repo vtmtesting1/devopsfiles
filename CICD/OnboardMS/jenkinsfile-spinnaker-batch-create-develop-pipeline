@@ -1,0 +1,275 @@
+/* (c) Walgreen Co. All rights reserved.*/
+node {
+    properties([
+        parameters([
+            string(defaultValue: '', description: 'Enter RepoName you want to build Template', name: 'RepoName'),
+            string(defaultValue: '', description: 'Enter MicroService you want to build Template', name: 'MicroserviceName'),
+            choice(choices: ['All', 'Build', 'Deploy', 'QAManualJobRun', 'QASuspendJob', 'ProdDeploy', 'ProdEUDeploy', 'ProdManualJobRun', 'ProdEUManualJobRun', 'ProdSuspendJob', 'ProdEUSuspendJob'].join("\n"), description: 'Select All to create build and deploy pipelines, Build for build only, Deploy for deploy only', name: 'Pipeline'),
+            choice(choices: ['SpringBatch', 'NodeBatch'].join("\n"), description: 'Select type of template', name: 'TemplateType')
+        ]),
+        [$class: 'BuildDiscarderProperty', strategy: [$class: 'LogRotator', numToKeepStr: '10']],
+        disableConcurrentBuilds()
+    ])
+    stage('Clone') {
+        sh 'rm -rf PipelineConfig'
+        dir('PipelineConfig')  {
+            git branch: 'configdevops', credentialsId: 'wag_git_creds', url: 'https://wagwiki.wba.com/stash/scm/ecomm/${RepoName}.git'
+        }
+        dir('roer-go') {
+            git branch: 'master', credentialsId: 'wag_git_creds', url: 'https://wagwiki.wba.com/stash/scm/ecomm/spinnaker-template.git'
+        }
+    }
+    stage('Build Pipeline') {
+        try {
+            if (params.Pipeline == 'All' || params.Pipeline == 'Build') {
+                sh 'echo ${BUILD_NUMBER}'
+                sh 'echo ${WORKSPACE}'
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                sh '''cd ${WORKSPACE}/roer-go/roer-0.11.3/
+                SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline save ${WORKSPACE}/PipelineConfig/config/spinnaker/develop-pipeline-config.yaml'''
+            } else {
+                echo '****** Skipped Build Pipeline Creation ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('QA Deploy Pipeline') {
+        try {
+            if (params.Pipeline == 'All' || params.Pipeline == 'Deploy') {
+                sh 'echo ${BUILD_NUMBER}'
+                sh 'echo ${WORKSPACE}'
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                sh 'cp ${WORKSPACE}/PipelineConfig/config/spinnaker/develop-pipeline-config.yaml ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                if (params.TemplateType == 'SpringBatch') {
+                    sh 'sed -i.bak \'s/BuildTemplateBatchDevelopV1/\'SpringBatchDevelopCDTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                }
+                if (params.TemplateType == 'NodeBatch') {
+                    sh 'sed -i.bak \'s/BuildTemplateBatchDevelopV1/\'NodeBatchDevelopCDTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                }
+                sh 'sed -i.bak "s/${MicroserviceName}-build/${MicroserviceName}-deploy/g" ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                sh '''cd ${WORKSPACE}/roer-go/roer-0.11.3/
+                SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline save ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'''
+            } else {
+                echo '****** Skipped QA Deploy Pipeline Creation ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Prod Deploy Pipeline') {
+        try {
+            if (params.Pipeline == 'All' || params.Pipeline == 'ProdDeploy') {
+                sh 'echo ${BUILD_NUMBER}'
+                sh 'echo ${WORKSPACE}'
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                sh 'cp ${WORKSPACE}/PipelineConfig/config/spinnaker/develop-pipeline-config.yaml ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                if (params.TemplateType == 'SpringBatch') {
+                    sh 'sed -i.bak \'s/BuildTemplateBatchDevelopV1/\'SpringBatchProdCDTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                }
+                if (params.TemplateType == 'NodeBatch') {
+                    sh 'sed -i.bak \'s/BuildTemplateBatchDevelopV1/\'NodeBatchProdCDTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                }                
+                sh 'sed -i.bak "s/${MicroserviceName}-build/${MicroserviceName}-prod-deploy/g" ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                sh '''cd ${WORKSPACE}/roer-go/roer-0.11.3/
+                SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline save ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'''
+            } else {
+                echo '****** Skipped Prod Deploy Pipeline Creation ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Prod EU Deploy Pipeline') {
+        try {
+            if (params.Pipeline == 'All' || params.Pipeline == 'ProdEUDeploy') {
+                sh 'echo ${BUILD_NUMBER}'
+                sh 'echo ${WORKSPACE}'
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                sh 'cp ${WORKSPACE}/PipelineConfig/config/spinnaker/develop-pipeline-config.yaml ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                if (params.TemplateType == 'SpringBatch') {
+                    sh 'sed -i.bak \'s/BuildTemplateBatchDevelopV1/\'SpringBatchProdEUCDTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                }
+                if (params.TemplateType == 'NodeBatch') {
+                    sh 'sed -i.bak \'s/BuildTemplateBatchDevelopV1/\'NodeBatchProdEUCDTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                }                
+                sh 'sed -i.bak "s/${MicroserviceName}-build/${MicroserviceName}-prod-eu-deploy/g" ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                sh '''cd ${WORKSPACE}/roer-go/roer-0.11.3/
+                SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline save ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'''
+            } else {
+                echo '****** Skipped Prod EU Deploy Pipeline Creation ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('QA ManualJobRun Pipeline') {
+        try {
+            if (params.Pipeline == 'All' || params.Pipeline == 'QAManualJobRun') {
+                sh 'echo ${BUILD_NUMBER}'
+                sh 'echo ${WORKSPACE}'
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                sh 'cp ${WORKSPACE}/PipelineConfig/config/spinnaker/develop-pipeline-config.yaml ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                if (params.TemplateType == 'SpringBatch') {
+                    sh 'sed -i.bak \'s/BuildTemplateBatchDevelopV1/\'SpringBatchManualJobRunTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                }
+                if (params.TemplateType == 'NodeBatch') {
+                    sh 'sed -i.bak \'s/BuildTemplateBatchDevelopV1/\'NodeBatchManualJobRunTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                }                
+                sh 'sed -i.bak "s/${MicroserviceName}-build/${MicroserviceName}-qa-manualjobrun/g" ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                sh '''cd ${WORKSPACE}/roer-go/roer-0.11.3/
+                SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline save ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'''
+            } else {
+                echo '****** Skipped QA Manual Jobrun Pipeline Creation ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('QA SuspendJob Pipeline') {
+        try {
+            if (params.Pipeline == 'All' || params.Pipeline == 'QASuspendJob') {
+                sh 'echo ${BUILD_NUMBER}'
+                sh 'echo ${WORKSPACE}'
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                sh 'cp ${WORKSPACE}/PipelineConfig/config/spinnaker/develop-pipeline-config.yaml ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                if (params.TemplateType == 'SpringBatch') {
+                    sh 'sed -i.bak \'s/BuildTemplateBatchDevelopV1/\'SpringBatchSuspendJobRunTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                }
+                if (params.TemplateType == 'NodeBatch') {
+                    sh 'sed -i.bak \'s/BuildTemplateBatchDevelopV1/\'NodeBatchSuspendJobRunTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                }                
+                sh 'sed -i.bak "s/${MicroserviceName}-build/${MicroserviceName}-qa-suspendjob/g" ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                sh '''cd ${WORKSPACE}/roer-go/roer-0.11.3/
+                SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline save ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'''
+            } else {
+                echo '****** Skipped QA SuspendJob Pipeline Creation ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Prod ManualJobRun Pipeline') {
+        try {
+            if (params.Pipeline == 'All' || params.Pipeline == 'ProdManualJobRun') {
+                sh 'echo ${BUILD_NUMBER}'
+                sh 'echo ${WORKSPACE}'
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                sh 'cp ${WORKSPACE}/PipelineConfig/config/spinnaker/develop-pipeline-config.yaml ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                if (params.TemplateType == 'SpringBatch') {
+                    sh 'sed -i.bak \'s/BuildTemplateBatchDevelopV1/\'SpringBatchProdManualJobRunTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                }
+                if (params.TemplateType == 'NodeBatch') {
+                    sh 'sed -i.bak \'s/BuildTemplateBatchDevelopV1/\'NodeBatchProdManualJobRunTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                }                
+                sh 'sed -i.bak "s/${MicroserviceName}-build/${MicroserviceName}-prod-manualjobrun/g" ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                sh '''cd ${WORKSPACE}/roer-go/roer-0.11.3/
+                SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline save ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'''
+            } else {
+                echo '****** Skipped Prod ManualJobRun Pipeline Creation ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Prod EU ManualJobRun Pipeline') {
+        try {
+            if (params.Pipeline == 'All' || params.Pipeline == 'ProdEUManualJobRun') {
+                sh 'echo ${BUILD_NUMBER}'
+                sh 'echo ${WORKSPACE}'
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                sh 'cp ${WORKSPACE}/PipelineConfig/config/spinnaker/develop-pipeline-config.yaml ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                if (params.TemplateType == 'SpringBatch') {
+                    sh 'sed -i.bak \'s/BuildTemplateBatchDevelopV1/\'SpringBatchProdEUManualJobRunTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                }
+                if (params.TemplateType == 'NodeBatch') {
+                    sh 'sed -i.bak \'s/BuildTemplateBatchDevelopV1/\'NodeBatchProdEUManualJobRunTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                }                
+                sh 'sed -i.bak "s/${MicroserviceName}-build/${MicroserviceName}-prod-eu-manualjobrun/g" ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                sh '''cd ${WORKSPACE}/roer-go/roer-0.11.3/
+                SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline save ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'''
+            } else {
+                echo '****** Skipped Prod EU ManualJobRun Pipeline Creation ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Prod SuspendJob Pipeline') {
+        try {
+            if (params.Pipeline == 'All' || params.Pipeline == 'ProdSuspendJob') {
+                sh 'echo ${BUILD_NUMBER}'
+                sh 'echo ${WORKSPACE}'
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                sh 'cp ${WORKSPACE}/PipelineConfig/config/spinnaker/develop-pipeline-config.yaml ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                if (params.TemplateType == 'SpringBatch') {
+                    sh 'sed -i.bak \'s/BuildTemplateBatchDevelopV1/\'SpringBatchProdSuspendJobRunTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                }
+                if (params.TemplateType == 'NodeBatch') {
+                    sh 'sed -i.bak \'s/BuildTemplateBatchDevelopV1/\'NodeBatchProdSuspendJobRunTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                }                
+                sh 'sed -i.bak "s/${MicroserviceName}-build/${MicroserviceName}-prod-suspendjob/g" ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                sh '''cd ${WORKSPACE}/roer-go/roer-0.11.3/
+                SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline save ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'''
+            } else {
+                echo '****** Skipped Prod SuspendJob Pipeline Creation ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Prod EU SuspendJob Pipeline') {
+        try {
+            if (params.Pipeline == 'All' || params.Pipeline == 'ProdEUSuspendJob') {
+                sh 'echo ${BUILD_NUMBER}'
+                sh 'echo ${WORKSPACE}'
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                sh 'cp ${WORKSPACE}/PipelineConfig/config/spinnaker/develop-pipeline-config.yaml ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                if (params.TemplateType == 'SpringBatch') {
+                    sh 'sed -i.bak \'s/BuildTemplateBatchDevelopV1/\'SpringBatchProdEUSuspendJobRunTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                }
+                if (params.TemplateType == 'NodeBatch') {
+                    sh 'sed -i.bak \'s/BuildTemplateBatchDevelopV1/\'NodeBatchProdEUSuspendJobRunTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                }                
+                sh 'sed -i.bak "s/${MicroserviceName}-build/${MicroserviceName}-prod-eu-suspendjob/g" ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                sh '''cd ${WORKSPACE}/roer-go/roer-0.11.3/
+                SPINNAKER_API=https://dgtlspinnaker-gate-acs.walgreens.com:8085 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run cmd/roer/main.go --certPath "/var/jenkins_home/spin/.spin/client.crt" --keyPath "/var/jenkins_home/spin/.spin/client.key" pipeline save ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'''
+            } else {
+                echo '****** Skipped Prod EU SuspendJob Pipeline Creation ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+}
+

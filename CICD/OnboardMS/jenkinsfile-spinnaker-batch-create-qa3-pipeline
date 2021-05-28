@@ -1,0 +1,112 @@
+/* (c) Walgreen Co. All rights reserved.*/
+node {
+    properties([
+        parameters([
+            string(defaultValue: '', description: 'Enter RepoName you want to build Template', name: 'RepoName'),
+            string(defaultValue: '', description: 'Enter MicroService you want to build Template', name: 'MicroserviceName'),
+            string(defaultValue: '', description: 'Enter Active Session of Spinnaker Template', name: 'ActiveSession'),
+            choice(choices: ['All', 'Build', 'Deploy', 'ManualJobRun', 'SuspendJob'].join("\n"), description: 'Select All to create build and deploy pipelines, Build for build only, Deploy for deploy only', name: 'Pipeline'),
+            choice(choices: ['SpringBatch'].join("\n"), description: 'Select type of template', name: 'TemplateType')
+        ]),
+        [$class: 'BuildDiscarderProperty', strategy: [$class: 'LogRotator', numToKeepStr: '10']],
+        disableConcurrentBuilds()
+    ])
+    stage('Clone') {
+        dir('PipelineConfig')  {
+            git branch: 'configdevops', credentialsId: 'wag_git_creds', url: 'https://wagwiki.wba.com/stash/scm/ecomm/${RepoName}.git'
+        }
+        // sh 'rm -rf roer-go'
+        dir('roer-go') {
+            git branch: 'master', credentialsId: 'wag_git_creds', url: 'https://wagwiki.wba.com/stash/scm/ecomm/spinnaker-template.git'
+        }
+    }
+    stage('Build Pipeline') {
+        try {
+            if (params.Pipeline == 'All' || params.Pipeline == 'Build') {
+                sh 'echo ${BUILD_NUMBER}'
+                sh 'echo ${WORKSPACE}'
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                sh '''cd ${WORKSPACE}/roer-go/roer-0.11.3/
+                SPINNAKER_API=http://172.17.43.112:8084 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run cmd/roer/main.go --as ${ActiveSession} pipeline save ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config.yaml'''
+            } else {
+                echo '****** Skipped Build Pipeline Creation ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('Deploy Pipeline') {
+        try {
+            if (params.Pipeline == 'All' || params.Pipeline == 'Deploy') {
+                sh 'echo ${BUILD_NUMBER}'
+                sh 'echo ${WORKSPACE}'
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                sh 'cp ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config.yaml ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                if (params.TemplateType == 'SpringBatch') {
+                    sh 'sed -i.bak \'s/BuildTemplateBatchFeatureV1/\'SpringBatchFeatureCDTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                }
+                sh 'sed -i.bak "s/${MicroserviceName}-feature-build/${MicroserviceName}-feature-deploy/g" ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'
+                sh '''cd ${WORKSPACE}/roer-go/roer-0.11.3/
+                SPINNAKER_API=http://172.17.43.112:8084 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run cmd/roer/main.go --as ${ActiveSession} pipeline save ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-deploy.yaml'''
+            } else {
+                echo '****** Skipped Deploy Pipeline Creation ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('ManualJobRun Pipeline') {
+        try {
+            if (params.Pipeline == 'All' || params.Pipeline == 'ManualJobRun') {
+                sh 'echo ${BUILD_NUMBER}'
+                sh 'echo ${WORKSPACE}'
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                sh 'cp ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config.yaml ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-jobrun.yaml'
+                if (params.TemplateType == 'SpringBatch') {
+                    sh 'sed -i.bak \'s/BuildTemplateBatchFeatureV1/\'SpringBatchFeatureManualJobRunTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-jobrun.yaml'
+                }
+                sh 'sed -i.bak "s/${MicroserviceName}-feature-build/${MicroserviceName}-dev-manualjobrun/g" ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-jobrun.yaml'
+                sh '''cd ${WORKSPACE}/roer-go/roer-0.11.3/
+                SPINNAKER_API=http://172.17.43.112:8084 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run cmd/roer/main.go --as ${ActiveSession} pipeline save ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-jobrun.yaml'''
+            } else {
+                echo '****** Skipped Manual Jobrun Pipeline Creation ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+    stage('SuspendJob Pipeline') {
+        try {
+            if (params.Pipeline == 'All' || params.Pipeline == 'SuspendJob') {
+                sh 'echo ${BUILD_NUMBER}'
+                sh 'echo ${WORKSPACE}'
+                sh 'export PATH=/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/var/jenkins_home/workspace/spinnaker/roer-go/go/bin'
+                sh 'export GOPATH=/var/jenkins_home/workspace/spinnaker/roer-go/go-package'
+                sh 'cp ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config.yaml ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-suspendjob.yaml'
+                if (params.TemplateType == 'SpringBatch') {
+                    sh 'sed -i.bak \'s/BuildTemplateBatchFeatureV1/\'SpringBatchFeatureSuspendJobRunTemplateV1\'/g\' ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-suspendjob.yaml'
+                }
+                sh 'sed -i.bak "s/${MicroserviceName}-feature-build/${MicroserviceName}-dev-suspendjob/g" ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-suspendjob.yaml'
+                sh '''cd ${WORKSPACE}/roer-go/roer-0.11.3/
+                SPINNAKER_API=http://172.17.43.112:8084 /var/jenkins_home/workspace/spinnaker/roer-go/go/bin/go run cmd/roer/main.go --as ${ActiveSession} pipeline save ${WORKSPACE}/PipelineConfig/config/spinnaker/pipeline-config-suspendjob.yaml'''
+            } else {
+                echo '****** Skipped Manual Jobrun Pipeline Creation ******'
+            }
+        } catch (exc) {
+            currentBuild.result = "FAILURE"
+            throw exc
+        } finally {
+        }
+    }
+
+}
+

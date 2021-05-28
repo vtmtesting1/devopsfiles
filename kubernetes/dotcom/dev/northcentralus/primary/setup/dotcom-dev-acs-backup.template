@@ -1,0 +1,166 @@
+{
+  "apiVersion": "vlabs",
+  "properties": {
+    "orchestratorProfile": {
+      "orchestratorType": "Kubernetes",
+      "orchestratorRelease": "1.13",
+      "orchestratorVersion": "1.13.4",
+      "kubernetesConfig": {
+        "enableRbac": true,
+        "enableSecureKubelet": true,
+        "enableAggregatedAPIs": true,
+        "loadBalancerSku": "Standard",
+        "excludeMasterFromStandardLB": true,        
+        "networkPolicy": "calico",
+        "networkPlugin": "kubenet",
+        "clusterSubnet": "10.123.0.0/17",
+        "serviceCidr": "10.123.128.0/17",
+        "dnsServiceIP": "10.123.128.254",
+        "dockerBridgeSubnet": "192.168.21.5/24",
+        "etcdDiskSizeGB": "128",
+        "privateCluster": {
+          "enabled": true
+        },
+        "kubeletConfig": { 
+          "--non-masquerade-cidr": "10.123.0.0/17",
+          "--cluster-domain": "k8s.walgreens.com",
+          "--feature-gates": "PodPriority=true"
+        },
+        "apiServerConfig": {
+          "--enable-admission-plugins": "NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota"
+        },
+        "useInstanceMetadata": false,
+        "enableEncryptionWithExternalKms": true,
+        "cloudProviderRateLimit": false,
+        "cloudProviderRateLimitBucket": 0,
+        "cloudProviderRateLimitQPS": 0,
+        "addons": [
+          {
+            "name": "blobfuse-flexvolume",
+            "enabled" : false
+          },
+          {
+            "name": "smb-flexvolume",
+            "enabled" : false
+          },
+          {
+            "name": "keyvault-flexvolume",
+            "enabled" : false
+          },
+          {
+            "name": "nvidia-device-plugin",
+            "enabled" : false
+          },
+          {
+            "name": "azure-cni-networkmonitor",
+            "enabled" : false
+          },
+          {
+           "name": "ip-masq-agent",
+           "enabled" : false
+          }
+        ]
+      }
+    },
+    "masterProfile": {
+      "count": 3,
+      "dnsPrefix": "CLUSTER_NAME",
+      "distro": "ubuntu",
+      "vmSize": "Standard_D4s_v3",
+      "vnetSubnetId": "SUBNET_ID",
+      "availabilityProfile": "AvailabilitySet",
+      "firstConsecutiveStaticIP": "MASTER_IP",
+      "OSDiskSizeGB": 128,
+      "extensions": [
+        {
+          "name": "bootstrap",
+          "singleOrAll": "All"
+        }
+     ]
+    },
+    "agentPoolProfiles": [
+      {
+        "name": "AGENT_NAME1",
+        "count": 5,
+        "distro": "ubuntu",
+        "vmSize": "Standard_D8s_v3",
+        "vnetSubnetId": "SUBNET_ID",
+        "availabilityProfile": "AvailabilitySet",
+        "storageProfile" : "ManagedDisks",
+        "diskSizesGB": [64],
+        "OSDiskSizeGB": 128,
+        "acceleratedNetworkingEnabled": true,
+        "preProvisionExtension": {
+            "name": "prepare_vm_disks",
+            "singleOrAll": "All"
+        },
+        "extensions": [
+          {
+            "name": "bootstrap",
+            "singleOrAll": "All"
+          }
+       ]
+      },
+      {
+        "name": "AGENT_NAME2",
+        "count": 2,
+        "distro": "ubuntu",
+        "vmSize": "Standard_D16s_v3",
+        "vnetSubnetId": "SUBNET_ID",
+        "availabilityProfile": "AvailabilitySet",
+        "storageProfile" : "ManagedDisks",
+        "diskSizesGB": [64],
+        "OSDiskSizeGB": 128,
+        "acceleratedNetworkingEnabled": true,
+        "preProvisionExtension": {
+            "name": "prepare_vm_disks",
+            "singleOrAll": "All"
+        },
+        "extensions": [
+          {
+            "name": "bootstrap",
+            "singleOrAll": "All"
+          }
+       ]
+      }      
+    ],
+    "extensionProfiles": [
+      {
+          "name": "prepare_vm_disks",
+          "version": "v1",
+          "rootURL": "https://HEPTIO_ARK_STORAGE_ACCOUNT.blob.core.windows.net/",
+          "script": "prepare_vm_disks.sh",
+          "urlQuery": "HEPTIO_ARK_STORAGE_ACCOUNT_SAS_TOKEN"
+      },
+      {
+          "name": "bootstrap",
+          "version": "v3",
+          "extensionParameters": " -r profile_wag_infrastructure_baseline,profile_wag_acs_k8s_infra,profile_wag_digital_dotcom_dev_infra -t Azure,North-Central-US,EIS,EISLinux,Kubernetes,ACS,Digital,DotCom,Running,Instance-DotComDevACS01,Patch,PatchReboot,Reboot -e development ",
+          "rootURL": "https://CHEF_BOOTSTRAP_STORAGE_ACCOUNT.blob.core.windows.net/",
+          "script": "bootstrap.sh",
+          "urlQuery": "CHEF_BOOTSTRAP_STORAGE_ACCOUNT_SAS_TOKEN"
+      }
+    ],
+    "linuxProfile": {
+      "adminUsername": "ADMIN_ACCOUNT",
+      "ssh": {
+        "publicKeys": [
+          {
+            "keyData": "PUBLIC_KEY"
+          }
+        ]
+      }
+    },
+    "aadProfile": {
+      "serverAppID": "AAD_SERVER_APP_ID",
+      "clientAppID": "AAD_CLIENT_APP_ID",
+      "tenantID": "AZURE_TENANT_ID",
+      "adminGroupID": "AAD_ADMIN_GROUP_ID"
+    },    
+    "servicePrincipalProfile": {
+      "clientId": "CLIENT_ID",
+      "secret": "CLIENT_SECRET",
+      "objectId": "OBJECT_ID"
+    }
+  }
+}

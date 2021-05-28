@@ -1,0 +1,15 @@
+CheckIP() {
+	_AVAILABLE=`${AZ} network vnet check-ip-address -g ${_RESOURCE_GROUP} -n ${VNET_NAME} --ip-address ${STARTING_IP} --output tsv | awk '{ print $1 }'`
+
+	if [ "${_AVAILABLE}" == "False" ]; then
+		echo -e "\nERROR: IP '${STARTING_IP}' is already assigned in VNET '${VNET_NAME}'. Aborting!!!\n"
+		exit 89
+	fi
+
+	if [ "${_AVAILABLE}" == "" ]; then
+		echo -e "\nERROR: Encountered an issue running the check-ip-address command. Aborting!!!\n"
+		exit 88
+	fi
+
+	echo -e "\n${STARTING_IP} seems to be available.."
+}

@@ -1,0 +1,15 @@
+InstallStandardConfig() {
+
+	# echo -e "\nCreating Secrets.."
+
+	echo -e "\nApplying Standard Configuration settings..\n"
+
+	for YAML in $(ls config/*.y*ml | sort)
+	do
+		echo ${YAML}
+		${KUBECTL} --kubeconfig="${HOME}/${CLUSTER_NAME}-kubeconfig" apply -f ${YAML}
+	done
+
+	# echo -e "\nApplying Resource Quotas.."
+
+}

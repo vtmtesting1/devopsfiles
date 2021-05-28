@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+  labels:
+    app: spin
+    stack: deck
+  name: spin-deck
+  namespace: spinnaker
+spec:
+  externalTrafficPolicy: Cluster
+  loadBalancerIP: 10.217.68.58
+  ports:
+  - name: http
+    port: 9000
+    protocol: TCP
+    targetPort: 9000
+  - name: monitoring
+    port: 8008
+    protocol: TCP
+    targetPort: 8008
+  selector:
+    load-balancer-spin-deck: "true"
+  sessionAffinity: None
+  type: LoadBalancer
+

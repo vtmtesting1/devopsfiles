@@ -1,0 +1,9 @@
+@Library("NodeAPI-Jenkinsfile-Template@feature/node14.15.4") _
+configmapfeature {
+	MicroserviceName = "nodeapiboilerplate"
+    scmurl = "https://wagwiki.wba.com/stash/scm/ecomm/node-api-boilerplate.git"
+	fromfile = "config/env/dev/config.yaml"
+	cluster = "kubeconfig-dotcomdev03"
+	voltagenode = true
+}
+

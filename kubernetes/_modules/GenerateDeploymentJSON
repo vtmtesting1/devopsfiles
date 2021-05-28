@@ -1,0 +1,30 @@
+GenerateDeploymentJSON() {
+	if [ -f ${TEMPLATE_PREFIX}-${CLUSTER_NAME}.json ]; then
+		_TIMESTAMP=`date +%Y_%m_%d-%H-%M-%S`
+		echo -e "\nWARNING: ${TEMPLATE_PREFIX}-${CLUSTER_NAME}.json already exists. Renaming it to ${TEMPLATE_PREFIX}-${CLUSTER_NAME}.json.${_TIMESTAMP}"
+		mv ${TEMPLATE_PREFIX}-${CLUSTER_NAME}.json ${TEMPLATE_PREFIX}-${CLUSTER_NAME}.json.${_TIMESTAMP}
+	fi
+	cat ${TEMPLATE_PREFIX}.template > ${TEMPLATE_PREFIX}-${CLUSTER_NAME}.json
+	_PUBLIC_KEY=`cat ${CLUSTER_NAME}-ssh-key.pub | sed "s/\//\\\//g" | awk '{ print $1,$2 }'`
+	_AGENTPOOL_NAME="`echo ${CLUSTER_NAME} | cut -c1-9`n01"
+	cat ${TEMPLATE_PREFIX}-${CLUSTER_NAME}.json \
+		| sed "s/CLUSTER_NAME/${CLUSTER_NAME}/g" \
+		| sed "s/SUBNET_ID/\/subscriptions\/${SUBSCRIPTION_ID}\/resourceGroups\/${_RESOURCE_GROUP}\/providers\/Microsoft.Network\/virtualNetworks\/${_VNET}\/subnets\/${SUBNET_NAME}/g" \
+		| sed "s/MASTER_IP/${STARTING_IP}/g" \
+		| sed "s/AGENT_NAME/${_AGENTPOOL_NAME}/g" \
+		| sed "s/HEPTIO_ARK_STORAGE_ACCOUNT_SAS_TOKEN/${HEPTIO_ARK_STORAGE_ACCOUNT_SAS_TOKEN}/g" \
+		| sed "s/CHEF_BOOTSTRAP_STORAGE_ACCOUNT_SAS_TOKEN/${CHEF_BOOTSTRAP_STORAGE_ACCOUNT_SAS_TOKEN}/g" \
+		| sed "s/HEPTIO_ARK_STORAGE_ACCOUNT/${HEPTIO_ARK_STORAGE_ACCOUNT}/g" \
+		| sed "s/CHEF_BOOTSTRAP_STORAGE_ACCOUNT/${CHEF_BOOTSTRAP_STORAGE_ACCOUNT}/g" \
+		| sed "s/ADMIN_ACCOUNT/${ADMIN_ACCOUNT}/g" \
+		| sed "s|PUBLIC_KEY|${_PUBLIC_KEY}|g" \
+		| sed "s/AZURE_TENANT_ID/${AZURE_TENANT_ID}/g" \
+		| sed "s/AAD_SERVER_APP_ID/${AAD_SERVER_APP_ID}/g" \
+		| sed "s/AAD_CLIENT_APP_ID/${AAD_CLIENT_APP_ID}/g" \
+		| sed "s/AAD_ADMIN_GROUP_ID/${AAD_ADMIN_GROUP_ID}/g" \
+		| sed "s/OBJECT_ID/${_OBJECT_ID}/g" \
+		| sed "s/CLIENT_ID/${_CLIENT_ID}/g" \
+		| sed "s/CLIENT_SECRET/${CLIENT_SECRET}/g" > ${TEMPLATE_PREFIX}-${CLUSTER_NAME}.json.tmp
+
+	mv ${TEMPLATE_PREFIX}-${CLUSTER_NAME}.json.tmp ${TEMPLATE_PREFIX}-${CLUSTER_NAME}.json
+}

@@ -1,0 +1,8 @@
+SetNSG() {
+	echo -e "\nUpdating NSG '${AZURE_NETWORK_SECURITY_GROUP}' for Subnet '${_SUBNET_NAME}'"
+	${AZ} network vnet subnet update --resource-group "${_RESOURCE_GROUP}" --name "${_SUBNET_NAME}" --vnet-name "${_VNET}" --network-security-group "${AZURE_NETWORK_SECURITY_GROUP}" > /dev/null
+
+	if [ $? -ne 0 ]; then
+		echo -e "\nWARNING: Unable to update the Subnet '${_SUBNET_NAME}' with the NSG '${AZURE_NETWORK_SECURITY_GROUP}'. Please do it manually\n"
+	fi
+}
